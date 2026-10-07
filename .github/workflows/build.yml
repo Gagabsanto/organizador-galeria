@@ -1,0 +1,107 @@
+name: Gerar APK
+on: [push, workflow_dispatch]
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Criar o app
+        run: |
+          mkdir -p www
+          cat > www/index.html <<'EOF'
+          <!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+          <style>
+          body{margin:0;font:16px system-ui;background:#10171c;color:#eaf0f3;padding:calc(env(safe-area-inset-top,0px) + 14px) 12px 24px}
+          h1{font-size:1.4rem;margin:0 0 12px}
+          button{font:inherit;border:0;border-radius:12px;padding:12px 16px;background:#3cc4b4;color:#06201d;font-weight:600;margin-right:6px}
+          button:disabled{opacity:.4}
+          #chips{display:flex;gap:8px;overflow-x:auto;margin:12px 0}
+          .c{flex:none;background:#19232a;color:#eaf0f3;border-radius:99px;padding:8px 14px}
+          .c.on{background:#3cc4b4;color:#06201d}
+          #g{display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
+          #g img{width:100%;aspect-ratio:1;object-fit:cover;background:#19232a}
+          </style></head><body>
+          <h1>Organizador de Galeria</h1>
+          <button id="go">Ler minha galeria</button><button id="pr" disabled>Detectar praia</button>
+          <p id="m"></p><div id="chips"></div><div id="g"></div>
+          <script>
+          var items=[],cur='',lim=600;
+          function $(s){return document.querySelector(s)}
+          function src(p){return Capacitor.convertFileSrc(p)}
+          function album(p){
+            var f=p.split('/').pop(),d=p.split('/').slice(-2,-1)[0]||'Outros';
+            if(/screenshot|captura/i.test(f)||/screenshots/i.test(p)){
+              var m=f.match(/screenshot[_ -]?\d{8}[-_ ]?\d{4,6}[_ -](.+)\.\w+$/i);
+              return m?'Prints · '+m[1].replace(/[_-]+/g,' '):'Prints';
+            }
+            return d;
+          }
+          function render(){
+            var c={};items.forEach(function(i){c[i.a]=(c[i.a]||0)+1});
+            var names=Object.keys(c).sort(function(a,b){return c[b]-c[a]});
+            if(!cur||!c[cur])cur=names[0]||'';
+            $('#chips').innerHTML='';
+            names.forEach(function(n){
+              var b=document.createElement('button');b.className='c'+(n===cur?' on':'');
+              b.textContent=n+' ('+c[n]+')';b.onclick=function(){cur=n;lim=600;render()};
+              $('#chips').appendChild(b);
+            });
+            var g=$('#g');g.innerHTML='';
+            items.filter(function(i){return i.a===cur}).slice(0,lim).forEach(function(i){
+              var im=document.createElement('img');im.loading='lazy';im.src=src(i.p);g.appendChild(im);
+            });
+          }
+          $('#go').onclick=async function(){
+            $('#m').textContent='Lendo a galeria…';
+            try{
+              var r=await Capacitor.Plugins.Media.getMedias({quantity:20000,types:'photos'});
+              items=r.medias.map(function(x){var p=x.path||x.identifier;return{p:p,a:album(p)}});
+              $('#m').textContent=items.length+' fotos encontradas.';
+              $('#pr').disabled=false;render();
+            }catch(e){$('#m').textContent='Erro: '+(e.message||e)+' (confira a permissão de fotos do app)'}
+          };
+          function isBeach(img){
+            var c=document.createElement('canvas');c.width=c.height=24;
+            var x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,24,24);
+            var d=x.getImageData(0,0,24,24).data,sky=0,sand=0,sea=0,n=0;
+            for(var y=0;y<24;y++)for(var i=0;i<24;i++){
+              var k=(y*24+i)*4,r=d[k],g=d[k+1],b=d[k+2];
+              if(y<10){n++;if(b>r+20)sky++}
+              else if(y>=14){if(r>150&&g>120&&r>b+30&&g>b+10)sand++;if(b>r+20)sea++}
+            }
+            return sky/n>0.35&&(sand/240>0.2||sea/240>0.3);
+          }
+          $('#pr').onclick=async function(){
+            $('#pr').disabled=true;
+            var list=items.filter(function(i){return i.a.indexOf('Prints')!==0});
+            for(var k=0;k<list.length;k++){
+              $('#m').textContent='Procurando praia… '+(k+1)+' de '+list.length;
+              try{
+                var im=new Image();im.src=src(list[k].p);await im.decode();
+                if(isBeach(im))list[k].a='Praia';
+              }catch(e){}
+              if(k%25===0)await new Promise(function(r){setTimeout(r)});
+            }
+            $('#m').textContent='Pronto. Veja o álbum Praia.';render();
+          };
+          </script></body></html>
+          EOF
+          npm init -y
+          npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor-community/media@8
+          npx cap init "Organizador de Galeria" com.tobias.galeria --web-dir www
+          npx cap add android
+          sed -i 's|<application|<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" /><uses-permission android:name="android.permission.READ_MEDIA_VIDEO" /><uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" /><application|' android/app/src/main/AndroidManifest.xml
+          npx cap sync android
+      - name: Montar o APK
+        run: cd android && ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: galeria-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
