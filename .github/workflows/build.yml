@@ -1,1 +1,299 @@
-
+name: Gerar APK
+on: [push, workflow_dispatch]
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Criar o app
+        run: |
+          mkdir -p www
+          cat > www/index.html <<'EOF'
+          <!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+          <style>
+          *{box-sizing:border-box}
+          body{margin:0;font:16px system-ui,sans-serif;background:#0d1317;color:#eaf0f3;padding:calc(env(safe-area-inset-top,0px) + 14px) 12px 40px}
+          h1{font-size:1.5rem;margin:0}
+          .sub{color:#8fa1ad;margin:2px 0 12px;font-size:.9rem}
+          .row{display:flex;gap:8px;margin-bottom:10px}
+          button{font:inherit;border:0;cursor:pointer}
+          .pri,.sec{flex:1;border-radius:12px;padding:11px;font-weight:700;font-size:.95rem}
+          .pri{background:#3cc4b4;color:#06201d}
+          .sec{background:#19262d;color:#eaf0f3}
+          button:disabled{opacity:.45}
+          #m{color:#f2c46d;margin:6px 0;min-height:1em;font-size:.9rem}
+          #pb{display:none;height:4px;background:#19262d;border-radius:4px;overflow:hidden;margin:4px 0 8px}
+          #pb i{display:block;height:100%;width:0;background:#3cc4b4}
+          #dx{color:#5d6f7b;font-size:.72rem;margin-top:24px}
+          .sh{margin:20px 2px 8px;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:#8fa1ad;font-weight:700}
+          .albums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+          .card{position:relative;aspect-ratio:1;border-radius:14px;overflow:hidden;background:#151e24;padding:0;color:#fff;text-align:left}
+          .card img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover}
+          .card .t{position:absolute;left:0;right:0;bottom:0;padding:24px 8px 7px;background:linear-gradient(transparent,rgba(0,0,0,.8));display:flex;flex-direction:column}
+          .card .t b{font-size:.78rem;line-height:1.15;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+          .card .t span{font-size:.7rem;color:#c3d0d8}
+          .bar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+          .back{background:#19262d;color:#eaf0f3;border-radius:12px;padding:10px 14px;font-weight:700}
+          .bar h2{font-size:1.05rem;margin:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+          .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+          .grid img{width:100%;aspect-ratio:1;object-fit:cover;background:#151e24}
+          .mais{width:100%;margin-top:12px;padding:12px;border-radius:12px;background:#19262d;color:#eaf0f3}
+          #vw{position:fixed;left:0;top:0;right:0;bottom:0;background:#000;display:none;align-items:center;justify-content:center;z-index:9}
+          #vw img{max-width:100%;max-height:100%}
+          </style></head><body>
+          <div id="hd"><h1>Galeria</h1><p class="sub">Carregando…</p></div><p id="m"></p><div id="pb"><i></i></div><div id="app"></div><p id="dx"></p>
+          <div id="vw"><img alt=""></div>
+          <script>
+          var items=[],beachDone=false,lim=600,VER='v5',tela=null;
+          var Galeria=(window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Galeria)||null;
+          window.onerror=function(m){var e=document.querySelector('#m');if(e)e.textContent='Erro no app: '+m};
+          function $(s){return document.querySelector(s)}
+          function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+          function setm(t){$('#m').textContent=t}
+          function cand(i){
+            var a=[];
+            if(i.u)a.push(Capacitor.convertFileSrc(i.u));
+            a.push(Capacitor.convertFileSrc(encodeURI(i.p).replace(/#/g,'%23').replace(/\?/g,'%3F')));
+            a.push(Capacitor.convertFileSrc(i.p));
+            return a;
+          }
+          function load(i,im,done){
+            var c=cand(i),k=0;
+            im.loading='lazy';im.alt='';
+            im.onerror=function(){k++;if(k<c.length){im.src=c[k]}else{i.bad=true;im.onerror=null;if(done)done()}};
+            im.src=c[0];
+          }
+          function capa(list,im,from,n){
+            while(from<list.length&&list[from].bad)from++;
+            if(from>=list.length||n>6){im.style.display='none';return}
+            load(list[from],im,function(){capa(list,im,from+1,n+1)});
+          }
+          function ehPrint(w,h){
+            if(!tela||!w||!h)return false;
+            var a=Math.max(w,h),b=Math.min(w,h),A=Math.max(tela.w,tela.h),B=Math.min(tela.w,tela.h);
+            if(a===A&&b===B)return true;
+            return Math.abs(a/b-A/B)<0.012&&a<=A*1.02&&a>=A*0.5;
+          }
+          function album(x){
+            var p=x.p,f=p.split('/').pop(),parts=p.split('/'),d=parts[parts.length-2]||'Outros';
+            if(/^(sent|private)$/i.test(d))d=(parts[parts.length-3]||'Outros')+' · enviadas';
+            if(/screenshot|captura/i.test(f)||/screenshots/i.test(p)){
+              var m=f.match(/screenshot[_ -]?\d{8}[-_ ]?\d{4,6}[_ -](.+)\.\w+$/i);
+              return m?'Prints · '+m[1].replace(/[_-]+/g,' '):'Prints';
+            }
+            if(ehPrint(x.w,x.h))return 'Prints recebidos';
+            return d;
+          }
+          function groups(){var g={};items.forEach(function(i){if(i.bad)return;(g[i.a]=g[i.a]||[]).push(i)});return g}
+          function home(){
+            var g=groups(),ns=Object.keys(g).sort(function(a,b){return g[b].length-g[a].length});
+            var total=0;ns.forEach(function(n){total+=g[n].length});
+            var hd=$('#hd');hd.innerHTML='';
+            hd.appendChild(el('h1',0,'Galeria'));
+            hd.appendChild(el('p','sub',total?total+' fotos em '+ns.length+' álbuns':'Separe suas fotos em álbuns automaticamente'));
+            var row=el('div','row');
+            var b1=el('button','pri',total?'Atualizar':'Ler minha galeria');b1.onclick=ler;row.appendChild(b1);
+            if(total){var b2=el('button','sec',beachDone?'Praia detectada':'Detectar praia');b2.disabled=beachDone;b2.onclick=praia;row.appendChild(b2)}
+            hd.appendChild(row);
+            var app=$('#app');app.innerHTML='';
+            var secs=[{t:'Prints',f:function(n){return n.indexOf('Prints')===0}},{t:'Detectados',f:function(n){return n==='Praia'}},{t:'Pastas do celular',f:function(){return true}}];
+            var used={};
+            secs.forEach(function(s){
+              var list=ns.filter(function(n){return !used[n]&&s.f(n)});
+              if(!list.length)return;
+              list.forEach(function(n){used[n]=1});
+              app.appendChild(el('div','sh',s.t));
+              var grid=el('div','albums');
+              list.forEach(function(n){
+                var c=el('button','card'),im=el('img'),t=el('div','t');
+                capa(g[n],im,0,0);
+                t.appendChild(el('b',0,n));t.appendChild(el('span',0,g[n].length+' fotos'));
+                c.appendChild(im);c.appendChild(t);
+                c.onclick=function(){lim=600;abrir(n)};grid.appendChild(c);
+              });
+              app.appendChild(grid);
+            });
+          }
+          function abrir(n){
+            var list=groups()[n]||[];
+            var hd=$('#hd');hd.innerHTML='';
+            var bar=el('div','bar'),bk=el('button','back','‹ Voltar');bk.onclick=home;
+            bar.appendChild(bk);bar.appendChild(el('h2',0,n+' ('+list.length+')'));hd.appendChild(bar);
+            var app=$('#app');app.innerHTML='';
+            var grid=el('div','grid');
+            list.slice(0,lim).forEach(function(i){
+              var im=el('img');load(i,im,function(){im.style.display='none'});
+              im.onclick=function(){
+                var v=$('#vw'),vi=v.firstChild,c=cand(i),k=0;
+                vi.onerror=function(){k++;if(k<c.length)vi.src=c[k]};
+                vi.src=c[0];v.style.display='flex';
+              };
+              grid.appendChild(im);
+            });
+            app.appendChild(grid);
+            if(list.length>lim){var mb=el('button','mais','Mostrar mais');mb.onclick=function(){lim+=600;abrir(n)};app.appendChild(mb)}
+            window.scrollTo(0,0);
+          }
+          $('#vw').onclick=function(){this.style.display='none'};
+          async function diag(){
+            if(!Galeria){$('#dx').textContent=VER+' · modulo Galeria nao encontrado no app';return}
+            try{var r=await Galeria.estado();$('#dx').textContent=VER+' · Android API '+r.sdk+' · permissão: '+r.permissao}
+            catch(e){$('#dx').textContent=VER+' · diagnóstico indisponível: '+(e.message||e)}
+          }
+          async function ler(){
+            if(!Galeria){setm('O módulo da galeria não foi carregado no app.');return}
+            setm('Lendo a galeria…');
+            try{
+              var r=await Galeria.listar();
+              tela={w:r.telaW,h:r.telaH};
+              items=r.fotos.map(function(x){var o={p:x.path,u:x.uri,w:x.w,h:x.h};o.a=album(o);return o});
+              beachDone=false;
+              setm(items.length?'':'Nenhuma foto encontrada.');
+              home();
+            }catch(e){setm('Não foi possível ler: '+(e.message||e))}
+            diag();
+          }
+          function isBeach(img){
+            var w=img.naturalWidth,h=img.naturalHeight;
+            if(w&&h&&Math.max(w,h)/Math.min(w,h)>1.9)return false;
+            var c=document.createElement('canvas');c.width=c.height=24;
+            var x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,24,24);
+            var d=x.getImageData(0,0,24,24).data,sky=0,sand=0,sea=0,n=0;
+            for(var y=0;y<24;y++)for(var i=0;i<24;i++){
+              var k=(y*24+i)*4,r=d[k],g=d[k+1],b=d[k+2];
+              if(y<10){n++;if(b>r+20)sky++}
+              else if(y>=14){if(r>150&&g>120&&r>b+30&&g>b+10)sand++;if(b>r+20)sea++}
+            }
+            return sky/n>0.4&&(sand/240>0.22||sea/240>0.35);
+          }
+          async function abrirImg(i){
+            var c=cand(i);
+            for(var k=0;k<c.length;k++){
+              try{var im=new Image();im.src=c[k];await im.decode();return im}catch(e){}
+            }
+            return null;
+          }
+          async function praia(){
+            var list=items.filter(function(i){return !i.bad&&i.a.indexOf('Prints')!==0});
+            var pb=$('#pb');pb.style.display='block';
+            for(var k=0;k<list.length;k++){
+              setm('Procurando praia… '+(k+1)+' de '+list.length);
+              pb.firstChild.style.width=Math.round((k+1)*100/list.length)+'%';
+              var im=await abrirImg(list[k]);
+              if(!im)list[k].bad=true;
+              else if(isBeach(im))list[k].a='Praia';
+              if(k%25===0)await new Promise(function(r){setTimeout(r)});
+            }
+            pb.style.display='none';beachDone=true;setm('');home();
+          }
+          home();diag();
+          </script></body></html>
+          EOF
+          npm init -y
+          npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
+          npx cap init "Organizador de Galeria" com.tobias.galeria --web-dir www
+          npx cap add android
+          D=android/app/src/main/java/com/tobias/galeria
+          cat > $D/GaleriaPlugin.java <<'EOF'
+          package com.tobias.galeria;
+          import android.Manifest;
+          import android.content.ContentUris;
+          import android.database.Cursor;
+          import android.provider.MediaStore;
+          import com.getcapacitor.JSArray;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.PermissionState;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+          import com.getcapacitor.annotation.Permission;
+          import com.getcapacitor.annotation.PermissionCallback;
+          @CapacitorPlugin(name = "Galeria", permissions = {
+            @Permission(alias = "fotos", strings = { Manifest.permission.READ_MEDIA_IMAGES }),
+            @Permission(alias = "fotosAntigo", strings = { Manifest.permission.READ_EXTERNAL_STORAGE })
+          })
+          public class GaleriaPlugin extends Plugin {
+            private String alias() { return android.os.Build.VERSION.SDK_INT >= 33 ? "fotos" : "fotosAntigo"; }
+            @PluginMethod
+            public void estado(PluginCall call) {
+              JSObject r = new JSObject();
+              r.put("sdk", android.os.Build.VERSION.SDK_INT);
+              r.put("permissao", getPermissionState(alias()).toString());
+              call.resolve(r);
+            }
+            @PluginMethod
+            public void listar(PluginCall call) {
+              if (getPermissionState(alias()) != PermissionState.GRANTED) {
+                requestPermissionForAlias(alias(), call, "depoisPermissao");
+                return;
+              }
+              ler(call);
+            }
+            @PermissionCallback
+            private void depoisPermissao(PluginCall call) {
+              if (getPermissionState(alias()) == PermissionState.GRANTED) ler(call);
+              else call.reject("Permissão de fotos negada. Ative em Configurações > Apps > Organizador de Galeria > Permissões > Fotos e vídeos.");
+            }
+            private void ler(PluginCall call) {
+              try {
+                JSArray arr = new JSArray();
+                String[] cols = { MediaStore.Images.Media._ID, MediaStore.Images.Media.DATA, MediaStore.Images.Media.WIDTH, MediaStore.Images.Media.HEIGHT };
+                Cursor c = getContext().getContentResolver().query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cols, null, null, MediaStore.Images.Media.DATE_ADDED + " DESC");
+                if (c != null) {
+                  int ci = c.getColumnIndex(MediaStore.Images.Media._ID);
+                  int cd = c.getColumnIndex(MediaStore.Images.Media.DATA);
+                  int cw = c.getColumnIndex(MediaStore.Images.Media.WIDTH);
+                  int ch = c.getColumnIndex(MediaStore.Images.Media.HEIGHT);
+                  while (c.moveToNext()) {
+                    String p = c.getString(cd);
+                    if (p == null || p.contains("/.")) continue;
+                    JSObject o = new JSObject();
+                    o.put("path", p);
+                    o.put("uri", ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, c.getLong(ci)).toString());
+                    o.put("w", c.getInt(cw));
+                    o.put("h", c.getInt(ch));
+                    arr.put(o);
+                  }
+                  c.close();
+                }
+                android.util.DisplayMetrics dm = new android.util.DisplayMetrics();
+                getActivity().getWindowManager().getDefaultDisplay().getRealMetrics(dm);
+                JSObject res = new JSObject();
+                res.put("fotos", arr);
+                res.put("telaW", dm.widthPixels);
+                res.put("telaH", dm.heightPixels);
+                call.resolve(res);
+              } catch (Exception e) {
+                call.reject("Erro ao ler a galeria: " + e.getMessage());
+              }
+            }
+          }
+          EOF
+          cat > $D/MainActivity.java <<'EOF'
+          package com.tobias.galeria;
+          import android.os.Bundle;
+          import com.getcapacitor.BridgeActivity;
+          public class MainActivity extends BridgeActivity {
+            @Override
+            public void onCreate(Bundle savedInstanceState) {
+              registerPlugin(GaleriaPlugin.class);
+              super.onCreate(savedInstanceState);
+            }
+          }
+          EOF
+          sed -i 's|<application|<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" /><uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" /><application|' android/app/src/main/AndroidManifest.xml
+          npx cap sync android
+      - name: Montar o APK
+        run: cd android && ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: galeria-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
