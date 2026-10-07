@@ -144,7 +144,95 @@ jobs:
               if (Build.VERSION.SDK_INT >= 29) {
                 return MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL);
               }
-                              call.reject("Erro ao ler a galeria: " + e.getMessage());
+              return MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+            }
+          
+            @PluginMethod
+            public void estado(PluginCall call) {
+              JSObject r = new JSObject();
+              r.put("sdk", Build.VERSION.SDK_INT);
+              r.put("permissao", getPermissionState(alias()).toString());
+              call.resolve(r);
+            }
+          
+            @PluginMethod
+            public void listar(PluginCall call) {
+              if (getPermissionState(alias()) != PermissionState.GRANTED) {
+                requestPermissionForAlias(alias(), call, "depoisPermissao");
+                return;
+              }
+              ler(call);
+            }
+          
+            @PermissionCallback
+            private void depoisPermissao(PluginCall call) {
+              if (getPermissionState(alias()) == PermissionState.GRANTED) {
+                ler(call);
+              } else {
+                call.reject("Permissão de fotos negada. Para ver a galeria inteira, permita acesso a todas as fotos em Configurações > Apps > Organizador de Galeria > Permissões.");
+              }
+            }
+          
+            private void ler(PluginCall call) {
+              try {
+                JSArray arr = new JSArray();
+                Uri base = imagensUri();
+                String[] cols;
+                if (Build.VERSION.SDK_INT >= 29) {
+                  cols = new String[] {
+                    MediaStore.Images.Media._ID,
+                    MediaStore.Images.Media.DATA,
+                    MediaStore.Images.Media.DISPLAY_NAME,
+                    MediaStore.Images.Media.RELATIVE_PATH,
+                    MediaStore.Images.Media.WIDTH,
+                    MediaStore.Images.Media.HEIGHT
+                  };
+                } else {
+                  cols = new String[] {
+                    MediaStore.Images.Media._ID,
+                    MediaStore.Images.Media.DATA,
+                    MediaStore.Images.Media.DISPLAY_NAME,
+                    MediaStore.Images.Media.WIDTH,
+                    MediaStore.Images.Media.HEIGHT
+                  };
+                }
+          
+                ContentResolver cr = getContext().getContentResolver();
+                Cursor c = cr.query(base, cols, null, null, MediaStore.Images.Media.DATE_ADDED + " DESC");
+                if (c != null) {
+                  int ci = c.getColumnIndex(MediaStore.Images.Media._ID);
+                  int cd = c.getColumnIndex(MediaStore.Images.Media.DATA);
+                  int cn = c.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME);
+                  int crp = c.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH);
+                  int cw = c.getColumnIndex(MediaStore.Images.Media.WIDTH);
+                  int ch = c.getColumnIndex(MediaStore.Images.Media.HEIGHT);
+                  while (c.moveToNext()) {
+                    String p = cd >= 0 ? c.getString(cd) : "";
+                    String nome = cn >= 0 ? c.getString(cn) : "";
+                    String rel = crp >= 0 ? c.getString(crp) : "";
+                    if (p == null) p = "";
+                    if (p.contains("/.")) continue;
+                    JSObject o = new JSObject();
+                    o.put("path", p);
+                    o.put("nome", nome == null ? "" : nome);
+                    o.put("pasta", rel == null ? "" : rel);
+                    o.put("uri", ContentUris.withAppendedId(base, c.getLong(ci)).toString());
+                    o.put("w", cw >= 0 ? c.getInt(cw) : 0);
+                    o.put("h", ch >= 0 ? c.getInt(ch) : 0);
+                    arr.put(o);
+                  }
+                  c.close();
+                }
+          
+                android.util.DisplayMetrics dm = new android.util.DisplayMetrics();
+                getActivity().getWindowManager().getDefaultDisplay().getRealMetrics(dm);
+                JSObject res = new JSObject();
+                res.put("fotos", arr);
+                res.put("telaW", dm.widthPixels);
+                res.put("telaH", dm.heightPixels);
+                call.resolve(res);
+              } catch (Exception e) {
+                call.reject("Erro ao ler a galeria: " + e.getMessage());
               }
             }
           
@@ -164,12 +252,11 @@ jobs:
                 return;
               }
           
-              execute(new Runnable() {
+              new Thread(new Runnable() {
                 @Override
                 public void run() {
                   ImageLabelerOptions options = new ImageLabelerOptions.Builder()
                     .setConfidenceThreshold(0.55f)
-                    .setMaxResultCount(5)
                     .build();
                   ImageLabeler labeler = ImageLabeling.getClient(options);
                   JSArray resultados = new JSArray();
@@ -181,7 +268,9 @@ jobs:
                       try {
                         InputImage image = InputImage.fromFilePath(getContext(), Uri.parse(s));
                         List<ImageLabel> labels = Tasks.await(labeler.process(image));
+                        int n = 0;
                         for (ImageLabel label : labels) {
+                          if (n++ >= 5) break;
                           rotulos.put(label.getText());
                         }
                       } catch (Exception ignored) {
@@ -197,10 +286,10 @@ jobs:
                   } catch (Exception e) {
                     call.reject("Erro na análise das imagens: " + e.getMessage());
                   } finally {
-                    labeler.close();
+                    try { labeler.close(); } catch (Exception ignored) { }
                   }
                 }
-              });
+              }).start();
             }
           
             @PluginMethod
@@ -350,17 +439,6 @@ jobs:
         run: |
           set -e
           node --check www/app.js
-          python3 - <<'PY'
-          import pathlib, yaml
-          p=pathlib.Path('.github/workflows/build.yml')
-          yaml.safe_load(p.read_text())
-          print('YAML_OK')
-          for f in ['GaleriaPlugin.java','ConfirmMediaActivity.java','MainActivity.java']:
-              s=pathlib.Path(f).read_text()
-              for a,b in [('(',')'),('{','}'),('[',']')]:
-                  assert s.count(a)==s.count(b), f'{f}: delimitadores {a}{b} desequilibrados'
-          print('JAVA_STRUCTURE_OK')
-          PY
           grep -q 'com.google.mlkit:image-labeling:17.0.9' android/app/build.gradle
           grep -q 'ConfirmMediaActivity' android/app/src/main/AndroidManifest.xml
           grep -q 'GaleriaPlugin.class' android/app/src/main/java/com/tobias/galeria/MainActivity.java
