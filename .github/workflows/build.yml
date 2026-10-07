@@ -20,7 +20,7 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Criar arquivos do app v7
+      - name: Criar arquivos do app v8
         shell: bash
         run: |
           set -e
@@ -33,7 +33,7 @@ jobs:
           </head><body>
           <div id="hd"><h1>Galeria</h1><p class="sub">Carregando…</p></div>
           <p id="m"></p><div id="pb"><i></i></div><div id="app"></div><p id="dx"></p>
-          <div id="vw"><div id="vt"><button id="vx">✕</button><span id="vc"></span><button id="vd">🗑</button></div><img id="vim" alt=""></div>
+          <div id="vw"><div id="vt"><button id="vx">✕</button><span id="vc"></span><button id="vd">🗑</button></div><img id="vim" alt=""><button id="vp">▶ Reproduzir</button></div>
           <script src="app.js"></script>
           </body></html>
           FILE_index_html
@@ -52,11 +52,12 @@ jobs:
           #vw{position:fixed;left:0;top:0;right:0;bottom:0;background:#000;display:none;align-items:center;justify-content:center;z-index:99;touch-action:none}#vw img{max-width:100%;max-height:100%;object-fit:contain;transition:opacity .12s}.dang{background:#68232b!important;color:#ffdce0!important}
           #vt{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 10px;background:linear-gradient(rgba(0,0,0,.75),transparent);z-index:2}#vt button{background:rgba(25,25,25,.65);color:#fff;border-radius:22px;padding:9px 14px;font-size:1rem;backdrop-filter:blur(5px)}#vc{color:#fff;font-size:.88rem;font-weight:700;text-shadow:0 1px 4px #000}
           @media(max-width:370px){.albums{gap:5px}.card{border-radius:11px}.back{padding:9px 8px;font-size:.88rem}}
+          .vcell{position:relative}.vcell img{display:block}.vcell span{position:absolute;right:5px;bottom:5px;background:rgba(0,0,0,.68);color:#fff;font-size:.68rem;font-weight:700;padding:1px 6px;border-radius:9px;pointer-events:none}#vp{display:none;position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 30px);left:50%;transform:translateX(-50%);background:#3cc4b4;color:#06201d;font-weight:800;border-radius:28px;padding:14px 26px;font-size:1rem;z-index:3}
           FILE_style_css
           cat > www/app.js <<'FILE_app_js'
-          var VER='v7',items=[],lim=600,tela=null,cur=null,selMode=false,SDK=0,lp=false,vlist=[],vi=0,tx=0,swipeY=0;
+          var VER='v8',items=[],lim=600,tela=null,cur=null,selMode=false,SDK=0,lp=false,vlist=[],vi=0,tx=0,swipeY=0;
           var Galeria=(window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Galeria)||null;
-          var PS={},VISTOS={},ROTULOS={};
+          var PS={},VISTOS={},ROTULOS={},INFO='';
           try{PS=JSON.parse(localStorage.getItem('praia')||'{}');VISTOS=JSON.parse(localStorage.getItem('vistos')||'{}');ROTULOS=JSON.parse(localStorage.getItem('rotulos')||'{}')}catch(e){}
           function salvar(){try{localStorage.setItem('praia',JSON.stringify(PS));localStorage.setItem('vistos',JSON.stringify(VISTOS));localStorage.setItem('rotulos',JSON.stringify(ROTULOS))}catch(e){}}
           window.onerror=function(m){var e=document.querySelector('#m');if(e)e.textContent='Erro no app: '+m};
@@ -64,28 +65,73 @@ jobs:
           function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
           function setm(t){$('#m').textContent=t}
           function cand(i){var a=[];if(i.u)a.push(i.u.indexOf('content://')===0?i.u:Capacitor.convertFileSrc(i.u));a.push(Capacitor.convertFileSrc(encodeURI(i.p).replace(/#/g,'%23').replace(/\?/g,'%3F')));a.push(Capacitor.convertFileSrc(i.p));return a}
-          function load(i,im,done){var c=cand(i),k=0;im.loading='lazy';im.alt='';im.onerror=function(){k++;if(k<c.length)im.src=c[k];else{i.bad=true;im.onerror=null;if(done)done()}};im.src=c[0]}
+          var TQ=[],TA=0,TC={};
+          function setT(t,p){t.im.onerror=function(){if(t.done)t.done()};t.im.src=Capacitor.convertFileSrc(p)}
+          function thumbV(i,im,done){var t={i:i,im:im,done:done},k=i.u||i.p;if(TC[k]){setT(t,TC[k]);return}if(!Galeria){if(done)done();return}TQ.push(t);tq()}
+          function tq(){while(TA<3&&TQ.length){TA++;(function(t){var k=t.i.u||t.i.p;Galeria.miniatura({uri:t.i.u}).then(function(r){if(r&&r.path){TC[k]=r.path;setT(t,r.path)}else if(t.done)t.done()},function(){if(t.done)t.done()}).then(function(){TA--;tq()})})(TQ.shift())}}
+          function fmtDur(ms){var s=Math.round((ms||0)/1000),m=Math.floor(s/60);s=s%60;return m+':'+(s<10?'0':'')+s}
+          function wrapV(im,i){var w=el('div','vcell');w.appendChild(im);w.appendChild(el('span',0,'▶ '+fmtDur(i.dur)));return w}
+          function load(i,im,done){if(i.v){thumbV(i,im,done);return}var c=cand(i),k=0;im.loading='lazy';im.alt='';im.onerror=function(){k++;if(k<c.length)im.src=c[k];else{i.bad=true;im.onerror=null;if(done)done()}};im.src=c[0]}
           function capa(list,im,from,n){while(from<list.length&&list[from].bad)from++;if(from>=list.length||n>6){im.style.display='none';return}load(list[from],im,function(){capa(list,im,from+1,n+1)})}
           function ehPrint(w,h){if(!tela||!w||!h)return false;var a=Math.max(w,h),b=Math.min(w,h),A=Math.max(tela.w,tela.h),B=Math.min(tela.w,tela.h);if(a===A&&b===B)return true;return Math.abs(a/b-A/B)<0.012&&a<=A*1.02&&a>=A*0.5}
           var CONV=/whatsapp|telegram|messenger|signal|discord|mensagens|messages|sms|chat|conversa/i;
-          function baseAlbum(x){var p=x.p||'',f=x.nome||p.split('/').pop(),rel=x.pasta||'',parts=p?p.split('/'):[],d=rel?rel.replace(/\\/g,'/').split('/').filter(Boolean).pop():(parts[parts.length-2]||'Outros');if(PS[p])return 'Praia';if(/^(sent|private)$/i.test(d))d=(parts[parts.length-3]||'Outros')+' · enviadas';if(/screenshot|captura/i.test(f)||/screenshots/i.test(p)){var m=f.match(/screenshot[_ -]?\d{8}[-_ ]?\d{4,6}[_ -](.+)\.\w+$/i);var app=m?m[1].replace(/[_-]+/g,' ').trim():'';if(CONV.test(app))return 'Prints · Conversas';return app?'Prints · '+app:'Prints'}if(ehPrint(x.w,x.h))return 'Prints recebidos';return d}
-          function labelAlbum(label){var s=(label||'').toLowerCase().trim();var map={beach:'Praia',seashore:'Praia',coast:'Praia',ocean:'Mar',sea:'Mar',food:'Comida',dish:'Comida',meal:'Comida',pizza:'Comida',hamburger:'Comida',cake:'Comida',dessert:'Comida',fruit:'Comida',animal:'Animais',dog:'Cachorros',cat:'Gatos',bird:'Aves',horse:'Cavalos',car:'Carros',vehicle:'Carros',motorcycle:'Motos',bicycle:'Bicicletas',person:'Pessoas',people:'Pessoas',human:'Pessoas',selfie:'Selfies',portrait:'Pessoas',mountain:'Montanhas',landscape:'Natureza',nature:'Natureza',forest:'Natureza',flower:'Flores',plant:'Plantas',tree:'Natureza',sky:'Céu',sunset:'Pôr do sol',sunrise:'Nascer do sol',building:'Prédios',house:'Casas',city:'Cidade',cityscape:'Cidade',phone:'Celular',computer:'Computador',laptop:'Computador',screen:'Tela',text:'Texto',book:'Livros',document:'Documentos',clothing:'Roupas',shoe:'Calçados',sport:'Esportes',football:'Esportes',soccer:'Futebol',basketball:'Basquete',beverage:'Bebidas',drink:'Bebidas',coffee:'Café',cake:'Comida'};if(map[s])return map[s];return ''}
-          function album(x){var b=baseAlbum(x);if(b!=='Outros'&&b!=='Camera'&&b!=='WhatsApp')return b;var rs=ROTULOS[x.u||x.p]||[];for(var i=0;i<rs.length;i++){var a=labelAlbum(rs[i]);if(a)return a}return b}
+          var GEN=/^(outros|camera|câmera|dcim|download|downloads|pictures|imagens|images|restored|documents|whatsapp.*|telegram.*|instagram|facebook|messenger|\d+)$/i;
+          function baseAlbum(x){if(x.v)return 'Vídeos';var p=x.p||'',f=x.nome||p.split('/').pop(),rel=x.pasta||'',parts=p?p.split('/'):[],d=rel?rel.replace(/\\/g,'/').split('/').filter(Boolean).pop():(parts[parts.length-2]||'Outros');if(PS[p])return 'Praia';if(/^(sent|private)$/i.test(d))d=(parts[parts.length-3]||'Outros')+' · enviadas';if(/screenshot|captura/i.test(f)||/screenshots/i.test(p)){var m=f.match(/screenshot[_ -]?\d{8}[-_ ]?\d{4,6}[_ -](.+)\.\w+$/i);var app=m?m[1].replace(/[_-]+/g,' ').trim():'';if(CONV.test(app))return 'Prints · Conversas';return app?'Prints · '+app:'Prints'}if(ehPrint(x.w,x.h))return 'Prints recebidos';return d}
+          var CAT={};
+          (function(){function a(n,w,l){l.split('|').forEach(function(x){CAT[x]=[n,w]})}
+          a('Praia',5,'beach|seashore');a('Praia',3,'coast|shore');a('Praia',2,'sand');
+          a('Mar e rios',4,'ocean|sea|lake|river|waterfall|wave');a('Mar e rios',3,'pond|bay');a('Mar e rios',2,'water');
+          a('Piscina',5,'swimming pool');a('Piscina',3,'pool');
+          a('Pôr do sol',5,'sunset|sunrise');a('Pôr do sol',3,'dusk|dawn|twilight');
+          a('Céu',1,'sky|cloud|atmosphere|horizon');
+          a('Neve',5,'snow');a('Neve',3,'winter|ice|freezing');
+          a('Montanhas',4,'mountain|volcano|mountain range|mountainous landforms');a('Montanhas',3,'hill|cliff|highland|ridge');
+          a('Natureza',4,'forest|jungle|woodland|desert');a('Natureza',3,'nature|natural landscape|landscape|wilderness|field|meadow|grassland|cave|rock');a('Natureza',2,'tree|lawn|grass');
+          a('Plantas e flores',5,'flower|bouquet|houseplant');a('Plantas e flores',4,'petal|garden');a('Plantas e flores',3,'plant|leaf');
+          a('Selfies',5,'selfie');
+          a('Crianças e bebês',5,'baby|toddler');a('Crianças e bebês',4,'child');
+          a('Festas e eventos',5,'wedding|birthday|bride');a('Festas e eventos',4,'party|ceremony|celebration');
+          a('Pessoas',3,'person|human|people|crowd|face|smile|head|hair|skin|eyebrow|forehead|chin|cheek|lip|nose|eyelash|facial expression|beard|neck|shoulder|arm|hand|finger|gesture|muscle|leg');
+          a('Comida',5,'dish|cuisine|meal|dessert|cake|pizza|hamburger|sushi|recipe');a('Comida',4,'food|fast food|baked goods|fruit|vegetable|snack');a('Comida',3,'ingredient|tableware|bowl');
+          a('Bebidas',5,'wine|beer|cocktail');a('Bebidas',4,'drink|beverage|coffee|juice|tea');a('Bebidas',2,'bottle|cup|glass');
+          a('Cachorros',5,'dog|puppy|dog breed');a('Cachorros',2,'snout');
+          a('Gatos',5,'cat|kitten|felidae|small to medium-sized cats');a('Gatos',3,'whiskers');
+          a('Aves',5,'bird');a('Aves',3,'beak|feather');
+          a('Animais',4,'wildlife|insect|butterfly|fish|horse|cattle|rabbit|reptile|zoo');a('Animais',3,'animal|pet|terrestrial animal');a('Animais',2,'mammal|carnivore|fur|tail|paw');
+          a('Carros',5,'car|sports car');a('Carros',4,'motor vehicle|truck|bus');a('Carros',3,'vehicle|automotive design');a('Carros',2,'wheel|tire');
+          a('Motos',5,'motorcycle|motorcycling');a('Bicicletas',5,'bicycle|bicycle wheel|cycling');
+          a('Barcos',5,'boat|ship|yacht|watercraft');a('Aviões',5,'airplane|airliner|aircraft|aviation');
+          a('Prédios e cidade',5,'cityscape|skyscraper|metropolis|castle');a('Prédios e cidade',4,'city|tower|bridge|urban area|landmark|monument|temple|church|place of worship');a('Prédios e cidade',3,'building|architecture|street|facade');
+          a('Casas e interiores',5,'living room|bedroom|kitchen|bathroom|interior design');a('Casas e interiores',4,'house|home|couch|bed');a('Casas e interiores',3,'room|furniture|chair');a('Casas e interiores',2,'table|lamp');
+          a('Documentos',5,'document|receipt');a('Documentos',4,'paper|handwriting');a('Documentos',3,'text|writing|paper product|page');a('Documentos',2,'font|number');
+          a('Livros',5,'book');a('Livros',4,'publication|bookcase');a('Livros',3,'library');
+          a('Eletrônicos',4,'mobile phone|phone|computer|laptop|personal computer');a('Eletrônicos',3,'gadget|electronic device|monitor|television|keyboard|communication device|camera');a('Eletrônicos',2,'screen|display device|technology');
+          a('Roupas e moda',5,'shoe|footwear|sneakers');a('Roupas e moda',4,'clothing|dress|jeans|jacket|shirt|t-shirt|outerwear|handbag|jewellery');a('Roupas e moda',3,'fashion|sleeve|hat|bag|sunglasses|fashion accessory');
+          a('Futebol',5,'soccer');a('Basquete',5,'basketball');a('Tênis',5,'tennis');
+          a('Academia',5,'gym|weight training');a('Academia',4,'exercise|physical fitness');
+          a('Esportes',4,'sport|ball|football|ball game|team sport|surfing|skateboard');a('Esportes',3,'sports equipment|player');
+          a('Arte e desenhos',5,'cartoon|anime');a('Arte e desenhos',4,'painting|drawing|illustration|animation|sketch');a('Arte e desenhos',3,'art|visual arts|fictional character');
+          a('Música e shows',5,'concert|guitar');a('Música e shows',4,'musical instrument|singer');a('Música e shows',3,'music|stage|performance');
+          })();
+          var IAALB=[];for(var kk in CAT)if(IAALB.indexOf(CAT[kk][0])<0)IAALB.push(CAT[kk][0]);
+          function catAlbum(rs){var sc={},best='',bs=0;(rs||[]).forEach(function(l,p){var c=CAT[String(l).toLowerCase()];if(!c)return;sc[c[0]]=(sc[c[0]]||0)+c[1]*(6-p)});for(var n in sc)if(sc[n]>bs){bs=sc[n];best=n}return bs>=8?best:''}
+          function album(x){var b=baseAlbum(x);if(x.v||!GEN.test(b))return b;return catAlbum(ROTULOS[x.u||x.p])||b}
           function groups(){var g={};items.forEach(function(i){if(i.bad)return;(g[i.a]=g[i.a]||[]).push(i)});return g}
-          function home(){cur=null;selMode=false;var g=groups(),ns=Object.keys(g).sort(function(a,b){if(a==='Prints · Conversas')return -1;if(b==='Prints · Conversas')return 1;return g[b].length-g[a].length});var total=0;ns.forEach(function(n){total+=g[n].length});var hd=$('#hd');hd.innerHTML='';hd.appendChild(el('h1',0,'Galeria'));hd.appendChild(el('p','sub',total?total+' fotos em '+ns.length+' álbuns':'Separe suas fotos em álbuns automaticamente'));var row=el('div','row');var b1=el('button','pri',total?'Atualizar':'Ler minha galeria');b1.onclick=function(){ler()};row.appendChild(b1);if(total){var b2=el('button','sec','Organizar com IA');b2.onclick=analisar;row.appendChild(b2)}hd.appendChild(row);var app=$('#app');app.innerHTML='';var secs=[{t:'IA',f:function(n){return ['Praia','Mar','Comida','Animais','Cachorros','Gatos','Aves','Cavalos','Carros','Motos','Bicicletas','Pessoas','Selfies','Montanhas','Natureza','Flores','Plantas','Céu','Pôr do sol','Nascer do sol','Prédios','Casas','Cidade','Celular','Computador','Tela','Texto','Livros','Documentos','Roupas','Calçados','Esportes','Futebol','Basquete','Bebidas','Café'].indexOf(n)>=0}},{t:'Prints',f:function(n){return n.indexOf('Prints')===0}},{t:'Pastas do celular',f:function(){return true}}];var used={};secs.forEach(function(s){var list=ns.filter(function(n){return !used[n]&&s.f(n)});if(!list.length)return;list.forEach(function(n){used[n]=1});app.appendChild(el('div','sh',s.t));var grid=el('div','albums');list.forEach(function(n){var c=el('button','card'),im=el('img'),t=el('div','t');capa(g[n],im,0,0);t.appendChild(el('b',0,n));t.appendChild(el('span',0,g[n].length+' fotos'));c.appendChild(im);c.appendChild(t);c.onclick=function(){lim=600;abrir(n)};grid.appendChild(c)});app.appendChild(grid)});}
+          function home(){TQ.length=0;cur=null;selMode=false;var g=groups(),ns=Object.keys(g).sort(function(a,b){if(a==='Prints · Conversas')return -1;if(b==='Prints · Conversas')return 1;return g[b].length-g[a].length});var total=0;ns.forEach(function(n){total+=g[n].length});var hd=$('#hd');hd.innerHTML='';hd.appendChild(el('h1',0,'Galeria'));hd.appendChild(el('p','sub',total?items.filter(function(i){return !i.v}).length+' fotos'+(items.some(function(i){return i.v})?' · '+items.filter(function(i){return i.v}).length+' vídeos':'')+' em '+ns.length+' álbuns':'Separe suas fotos em álbuns automaticamente'));var row=el('div','row');var b1=el('button','pri',total?'Atualizar':'Ler minha galeria');b1.onclick=function(){ler()};row.appendChild(b1);if(total){var b2=el('button','sec','Organizar com IA');b2.onclick=analisar;row.appendChild(b2)}hd.appendChild(row);var app=$('#app');app.innerHTML='';var secs=[{t:'IA',f:function(n){return IAALB.indexOf(n)>=0}},{t:'Vídeos',f:function(n){return n==='Vídeos'}},{t:'Prints',f:function(n){return n.indexOf('Prints')===0}},{t:'Pastas do celular',f:function(){return true}}];var used={};secs.forEach(function(s){var list=ns.filter(function(n){return !used[n]&&s.f(n)});if(!list.length)return;list.forEach(function(n){used[n]=1});app.appendChild(el('div','sh',s.t));var grid=el('div','albums');list.forEach(function(n){var c=el('button','card'),im=el('img'),t=el('div','t');capa(g[n],im,0,0);t.appendChild(el('b',0,n));t.appendChild(el('span',0,g[n].length+(n==='Vídeos'?' vídeos':' fotos')));c.appendChild(im);c.appendChild(t);c.onclick=function(){lim=600;abrir(n)};grid.appendChild(c)});app.appendChild(grid)});}
           function nsel(list){var c=0;list.forEach(function(i){if(i.s)c++});return c}
           function pinta(i){if(i.el)i.el.classList.toggle('on',!!i.s)}
           function barra(n,list){var hd=$('#hd');hd.innerHTML='';var bar=el('div','bar');if(!selMode){var bk=el('button','back','‹ Voltar');bk.onclick=home;var bs=el('button','back','Selecionar');bs.onclick=function(){selMode=true;barra(n,list)};bar.appendChild(bk);bar.appendChild(el('h2',0,n+' ('+list.length+')'));bar.appendChild(bs)}else{var c=nsel(list),bc=el('button','back','Cancelar');bc.onclick=function(){list.forEach(function(i){i.s=false;pinta(i)});selMode=false;barra(n,list)};var bt=el('button','back','Tudo');bt.onclick=function(){list.forEach(function(i){i.s=true;pinta(i)});barra(n,list)};var bd=el('button','back dang','Excluir');bd.disabled=!c;bd.onclick=function(){apagar(list.filter(function(i){return i.s}))};bar.appendChild(bc);bar.appendChild(el('h2',0,c+' selecionadas'));bar.appendChild(bt);bar.appendChild(bd)}hd.appendChild(bar)}
-          function abrir(n,keep){cur=n;var list=groups()[n]||[];if(!keep){selMode=false;list.forEach(function(i){i.s=false})}barra(n,list);var app=$('#app');app.innerHTML='';var grid=el('div','grid');list.slice(0,lim).forEach(function(i,idx){var im=el('img');i.el=im;pinta(i);load(i,im,function(){im.style.display='none'});var t;im.ontouchstart=function(){lp=false;t=setTimeout(function(){lp=true;selMode=true;i.s=true;pinta(i);barra(n,list)},450)};im.ontouchend=im.ontouchmove=im.ontouchcancel=function(){clearTimeout(t)};im.onclick=function(){if(lp){lp=false;return}if(selMode){i.s=!i.s;pinta(i);barra(n,list)}else mostrar(list,idx)};grid.appendChild(im)});app.appendChild(grid);if(list.length>lim){var mb=el('button','mais','Mostrar mais');mb.onclick=function(){lim+=600;abrir(n,true)};app.appendChild(mb)}window.scrollTo(0,0)}
+          function abrir(n,keep){TQ.length=0;cur=n;var list=groups()[n]||[];if(!keep){selMode=false;list.forEach(function(i){i.s=false})}barra(n,list);var app=$('#app');app.innerHTML='';var grid=el('div','grid');list.slice(0,lim).forEach(function(i,idx){var im=el('img');i.el=im;pinta(i);load(i,im,function(){im.style.display='none'});var t;im.ontouchstart=function(){lp=false;t=setTimeout(function(){lp=true;selMode=true;i.s=true;pinta(i);barra(n,list)},450)};im.ontouchend=im.ontouchmove=im.ontouchcancel=function(){clearTimeout(t)};im.onclick=function(){if(lp){lp=false;return}if(selMode){i.s=!i.s;pinta(i);barra(n,list)}else mostrar(list,idx)};grid.appendChild(i.v?wrapV(im,i):im)});app.appendChild(grid);if(list.length>lim){var mb=el('button','mais','Mostrar mais');mb.onclick=function(){lim+=600;abrir(n,true)};app.appendChild(mb)}window.scrollTo(0,0)}
           function mostrar(list,idx){vlist=list;vi=idx;showV();$('#vw').style.display='flex';document.body.classList.add('viewer-open')}
-          function showV(){var i=vlist[vi],im=$('#vim'),c=cand(i),k=0;im.style.opacity='0';im.onerror=function(){k++;if(k<c.length)im.src=c[k];else im.style.opacity='1'};im.onload=function(){im.style.opacity='1'};im.src=c[0];$('#vc').textContent=(vi+1)+' / '+vlist.length;var next=vlist[vi+1],prev=vlist[vi-1];if(next)new Image().src=cand(next)[0];if(prev)new Image().src=cand(prev)[0]}
+          function showV(){var i=vlist[vi],im=$('#vim');$('#vp').style.display=i.v?'block':'none';$('#vc').textContent=(vi+1)+' / '+vlist.length;if(i.v){im.style.opacity='1';im.onload=null;im.onerror=null;thumbV(i,im,function(){});return}var c=cand(i),k=0;im.style.opacity='0';im.onerror=function(){k++;if(k<c.length)im.src=c[k];else im.style.opacity='1'};im.onload=function(){im.style.opacity='1'};im.src=c[0];var next=vlist[vi+1],prev=vlist[vi-1];if(next&&!next.v)new Image().src=cand(next)[0];if(prev&&!prev.v)new Image().src=cand(prev)[0]}
+          $('#vp').onclick=function(){var i=vlist[vi];if(!Galeria||!i||!i.v)return;Galeria.abrirExterno({uri:i.u,tipo:'video/*'}).catch(function(e){alert('Não foi possível abrir o vídeo: '+(e.message||e))})};
           function nav(d){var k=vi+d;if(k<0||k>=vlist.length)return;vi=k;showV()}
           $('#vw').ontouchstart=function(e){tx=e.touches[0].clientX;swipeY=e.touches[0].clientY};$('#vw').ontouchend=function(e){var dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-swipeY;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.25)nav(dx<0?1:-1)};
           $('#vx').onclick=function(){$('#vw').style.display='none';document.body.classList.remove('viewer-open')};$('#vd').onclick=async function(){var ok=await apagar([vlist[vi]]);if(ok){vlist.splice(vi,1);if(!vlist.length){$('#vw').style.display='none';document.body.classList.remove('viewer-open');home()}else{if(vi>=vlist.length)vi=vlist.length-1;showV()}}};
           async function apagar(arr){if(!arr.length)return false;if(!Galeria){setm('Módulo da galeria indisponível.');return false}if(arr.length>2000){setm('Selecione no máximo 2000 fotos por vez.');return false}if(!confirm('Mover '+arr.length+' foto(s) para a lixeira do Android?'))return false;setm('Aguardando confirmação do Android…');try{var r=await Galeria.apagar({uris:arr.map(function(i){return i.u}),permanente:false});if(r.cancelado){setm('Exclusão cancelada.');return false}setm(r.ok+' foto(s) enviadas para a lixeira.');var rm={};arr.forEach(function(i){rm[i.u||i.p]=1});items=items.filter(function(i){return !rm[i.u||i.p]});selMode=false;salvar();if(cur&&groups()[cur])abrir(cur);else home();return r.ok>0}catch(e){setm('Não foi possível excluir: '+(e.message||e));return false}}
-          async function diag(){if(!Galeria){$('#dx').textContent=VER+' · módulo Galeria não encontrado no app';return}try{var r=await Galeria.estado();SDK=r.sdk;$('#dx').textContent=VER+' · Android API '+r.sdk+' · permissão: '+r.permissao}catch(e){$('#dx').textContent=VER+' · diagnóstico indisponível: '+(e.message||e)}}
-          async function ler(voltar,quieto){if(!Galeria){setm('O módulo da galeria não foi carregado no app.');return}if(!quieto)setm('Lendo todas as fotos da galeria…');try{var r=await Galeria.listar();tela={w:r.telaW,h:r.telaH};items=r.fotos.map(function(x){var o={p:x.path,u:x.uri,w:x.w,h:x.h};o.a=album(o);return o});if(!quieto)setm(items.length?items.length+' fotos encontradas.':'Nenhuma foto encontrada.');if(voltar&&groups()[voltar])abrir(voltar);else home()}catch(e){setm('Não foi possível ler: '+(e.message||e))}diag()}
-          async function analisar(){if(!Galeria||!items.length)return;var list=items.filter(function(i){return !i.bad&&!VISTOS[i.u||i.p]});if(!list.length){setm('A IA já analisou todas as fotos disponíveis.');return}var pb=$('#pb');pb.style.display='block';var batch=10,feitas=0;for(var k=0;k<list.length;k+=batch){var part=list.slice(k,k+batch);setm('Analisando com IA… '+Math.min(k+part.length,list.length)+' de '+list.length);pb.firstChild.style.width=Math.round(Math.min(k+part.length,list.length)*100/list.length)+'%';try{var r=await Galeria.analisarLote({uris:part.map(function(i){return i.u})});(r.resultados||[]).forEach(function(x,j){var it=part[j];var key=it.u||it.p;ROTULOS[key]=x.rotulos||[];VISTOS[key]=1;it.a=album(it)});feitas+=part.length}catch(e){setm('Erro na IA: '+(e.message||e));break}salvar();await new Promise(function(resolve){setTimeout(resolve,0)})}pb.style.display='none';salvar();home();setm(feitas+' foto(s) analisadas.')}
+          async function diag(){if(!Galeria){$('#dx').textContent=VER+' · módulo Galeria não encontrado no app';return}try{var r=await Galeria.estado();SDK=r.sdk;$('#dx').textContent=VER+' · Android API '+r.sdk+' · permissão: '+r.permissao+(INFO?' · '+INFO:'')}catch(e){$('#dx').textContent=VER+' · diagnóstico indisponível: '+(e.message||e)}}
+          async function ler(voltar,quieto){if(!Galeria){setm('O módulo da galeria não foi carregado no app.');return}if(!quieto)setm('Lendo todas as fotos da galeria…');try{var r=await Galeria.listar();tela={w:r.telaW,h:r.telaH};items=r.fotos.map(function(x){var o={p:x.path,u:x.uri,w:x.w,h:x.h,v:x.tipo==='video',dur:x.dur||0,d:x.data||0};o.a=album(o);return o});items.sort(function(p,q){return q.d-p.d});INFO='lidos: '+(r.nFotos||0)+' fotos, '+(r.nVideos||0)+' vídeos'+(r.ocultas?', '+r.ocultas+' ocultos':'');if(!quieto)setm(items.length?items.length+' fotos encontradas.':'Nenhuma foto encontrada.');if(voltar&&groups()[voltar])abrir(voltar);else home()}catch(e){setm('Não foi possível ler: '+(e.message||e))}diag()}
+          async function analisar(){if(!Galeria||!items.length)return;var list=items.filter(function(i){return !i.bad&&!i.v&&!VISTOS[i.u||i.p]&&GEN.test(baseAlbum(i))});if(!list.length){setm('A IA já analisou todas as fotos que podem ser organizadas.');return}var pb=$('#pb');pb.style.display='block';var batch=24,feitas=0,erro='',t0=Date.now();for(var k=0;k<list.length;k+=batch){var part=list.slice(k,k+batch),rest=k>0?Math.round((Date.now()-t0)/1000/k*(list.length-k)):0;setm('Analisando com IA… '+k+' de '+list.length+(rest>5?' · faltam ~'+(rest>=90?Math.round(rest/60)+' min':rest+' s'):''));pb.firstChild.style.width=Math.round(k*100/list.length)+'%';try{var r=await Galeria.analisarLote({uris:part.map(function(i){return i.u})});(r.resultados||[]).forEach(function(x,j){var it=part[j];if(!it)return;var key=it.u||it.p;ROTULOS[key]=x.rotulos||[];VISTOS[key]=1;it.a=album(it)});feitas+=part.length}catch(e){erro='Erro na IA: '+(e.message||e);break}if((k/batch)%5===0)salvar();await new Promise(function(resolve){setTimeout(resolve,0)})}pb.style.display='none';salvar();home();setm(erro||feitas+' foto(s) analisadas.')}
           async function praia(){var list=items.filter(function(i){return !i.bad&&i.a.indexOf('Prints')!==0&&i.a!=='Praia'&&!VISTOS[i.p]});if(!list.length){setm('Nada novo para analisar.');return}var pb=$('#pb');pb.style.display='block';for(var k=0;k<list.length;k++){setm('Procurando praia… '+(k+1)+' de '+list.length);pb.firstChild.style.width=Math.round((k+1)*100/list.length)+'%';var im=await abrirImg(list[k]);if(!im)list[k].bad=true;else{VISTOS[list[k].p]=1;if(isBeach(im)){PS[list[k].p]=1;list[k].a='Praia'}}if(k%50===0){salvar();await new Promise(function(r){setTimeout(r,0)})}}salvar();pb.style.display='none';setm('');home()}
           function isBeach(img){var w=img.naturalWidth,h=img.naturalHeight;if(w&&h&&Math.max(w,h)/Math.min(w,h)>1.9)return false;var c=document.createElement('canvas');c.width=c.height=24;var x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,24,24);var d=x.getImageData(0,0,24,24).data,sky=0,sand=0,sea=0,n=0;for(var y=0;y<24;y++)for(var i=0;i<24;i++){var q=(y*24+i)*4,r=d[q],g=d[q+1],b=d[q+2];if(y<10){n++;if(b>r+20)sky++}else if(y>=14){if(r>150&&g>120&&r>b+30&&g>b+10)sand++;if(b>r+20)sea++}}return sky/n>0.4&&(sand/240>0.22||sea/240>0.35)}
           async function abrirImg(i){var c=cand(i);for(var k=0;k<c.length;k++){try{var im=new Image();im.src=c[k];await im.decode();return im}catch(e){}}return null}
@@ -93,7 +139,7 @@ jobs:
           FILE_app_js
           cat > GaleriaPlugin.java <<'FILE_GaleriaPlugin_java'
           package com.tobias.galeria;
-          
+
           import android.Manifest;
           import android.content.ContentResolver;
           import android.content.ContentUris;
@@ -102,7 +148,7 @@ jobs:
           import android.os.Build;
           import android.provider.MediaStore;
           import android.database.Cursor;
-          
+
           import com.getcapacitor.JSArray;
           import com.getcapacitor.JSObject;
           import com.getcapacitor.PermissionState;
@@ -113,40 +159,66 @@ jobs:
           import com.getcapacitor.annotation.CapacitorPlugin;
           import com.getcapacitor.annotation.Permission;
           import com.getcapacitor.annotation.PermissionCallback;
-          
+
           import androidx.activity.result.ActivityResult;
-          
+
           import com.google.android.gms.tasks.Tasks;
           import com.google.mlkit.vision.common.InputImage;
           import com.google.mlkit.vision.label.ImageLabel;
           import com.google.mlkit.vision.label.ImageLabeler;
           import com.google.mlkit.vision.label.ImageLabeling;
           import com.google.mlkit.vision.label.defaults.ImageLabelerOptions;
-          
+
+          import android.graphics.Bitmap;
+          import android.graphics.BitmapFactory;
+          import java.io.File;
+          import java.io.FileOutputStream;
+          import java.io.InputStream;
           import java.io.IOException;
+          import java.util.concurrent.Callable;
+          import java.util.concurrent.ExecutorService;
+          import java.util.concurrent.Executors;
+          import java.util.concurrent.Future;
           import java.util.ArrayList;
           import java.util.Collection;
           import java.util.HashMap;
           import java.util.List;
           import java.util.Map;
-          
+
           @CapacitorPlugin(name = "Galeria", permissions = {
-            @Permission(alias = "fotos", strings = { Manifest.permission.READ_MEDIA_IMAGES }),
+            @Permission(alias = "fotos", strings = { Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO }),
             @Permission(alias = "fotosAntigo", strings = { Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE })
           })
           public class GaleriaPlugin extends Plugin {
-          
+
+            private final ExecutorService pool = Executors.newFixedThreadPool(3);
+            private ImageLabeler labeler;
+
+            private synchronized ImageLabeler rotulador() {
+              if (labeler == null) {
+                labeler = ImageLabeling.getClient(new ImageLabelerOptions.Builder().setConfidenceThreshold(0.5f).build());
+              }
+              return labeler;
+            }
+
+            private Uri videosUri() {
+              if (Build.VERSION.SDK_INT >= 29) {
+                return MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL);
+              }
+              return MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+            }
+
             private String alias() {
               return Build.VERSION.SDK_INT >= 33 ? "fotos" : "fotosAntigo";
             }
-          
+
             private Uri imagensUri() {
               if (Build.VERSION.SDK_INT >= 29) {
                 return MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL);
               }
               return MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
             }
-          
+
             @PluginMethod
             public void estado(PluginCall call) {
               JSObject r = new JSObject();
@@ -154,7 +226,7 @@ jobs:
               r.put("permissao", getPermissionState(alias()).toString());
               call.resolve(r);
             }
-          
+
             @PluginMethod
             public void listar(PluginCall call) {
               if (getPermissionState(alias()) != PermissionState.GRANTED) {
@@ -163,7 +235,7 @@ jobs:
               }
               ler(call);
             }
-          
+
             @PermissionCallback
             private void depoisPermissao(PluginCall call) {
               if (getPermissionState(alias()) == PermissionState.GRANTED) {
@@ -172,62 +244,78 @@ jobs:
                 call.reject("Permissão de fotos negada. Para ver a galeria inteira, permita acesso a todas as fotos em Configurações > Apps > Organizador de Galeria > Permissões.");
               }
             }
-          
+
+            private int lerColecao(Uri base, boolean video, JSArray arr, int[] ocultas) {
+              ArrayList<String> cl = new ArrayList<>();
+              cl.add(MediaStore.MediaColumns._ID);
+              cl.add(MediaStore.MediaColumns.DATA);
+              cl.add(MediaStore.MediaColumns.DISPLAY_NAME);
+              cl.add(MediaStore.MediaColumns.WIDTH);
+              cl.add(MediaStore.MediaColumns.HEIGHT);
+              cl.add(MediaStore.MediaColumns.DATE_ADDED);
+              if (Build.VERSION.SDK_INT >= 29) cl.add(MediaStore.MediaColumns.RELATIVE_PATH);
+              if (video) cl.add(MediaStore.Video.Media.DURATION);
+              String[] cols = cl.toArray(new String[0]);
+
+              int total = 0;
+              ContentResolver cr = getContext().getContentResolver();
+              Cursor c = cr.query(base, cols, null, null, MediaStore.MediaColumns.DATE_ADDED + " DESC");
+              if (c == null) return 0;
+              try {
+                int ci = c.getColumnIndex(MediaStore.MediaColumns._ID);
+                int cd = c.getColumnIndex(MediaStore.MediaColumns.DATA);
+                int cn = c.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME);
+                int crp = c.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH);
+                int cw = c.getColumnIndex(MediaStore.MediaColumns.WIDTH);
+                int ch = c.getColumnIndex(MediaStore.MediaColumns.HEIGHT);
+                int cdt = c.getColumnIndex(MediaStore.MediaColumns.DATE_ADDED);
+                int cdu = video ? c.getColumnIndex(MediaStore.Video.Media.DURATION) : -1;
+                while (c.moveToNext()) {
+                  String p = cd >= 0 ? c.getString(cd) : "";
+                  String nome = cn >= 0 ? c.getString(cn) : "";
+                  String rel = crp >= 0 ? c.getString(crp) : "";
+                  if (p == null) p = "";
+                  if (p.contains("/.")) {
+                    ocultas[0]++;
+                    continue;
+                  }
+                  JSObject o = new JSObject();
+                  o.put("path", p);
+                  o.put("nome", nome == null ? "" : nome);
+                  o.put("pasta", rel == null ? "" : rel);
+                  o.put("uri", ContentUris.withAppendedId(base, c.getLong(ci)).toString());
+                  o.put("w", cw >= 0 ? c.getInt(cw) : 0);
+                  o.put("h", ch >= 0 ? c.getInt(ch) : 0);
+                  o.put("tipo", video ? "video" : "foto");
+                  o.put("data", cdt >= 0 ? c.getLong(cdt) : 0L);
+                  o.put("dur", cdu >= 0 ? c.getLong(cdu) : 0L);
+                  arr.put(o);
+                  total++;
+                }
+              } finally {
+                c.close();
+              }
+              return total;
+            }
+
             private void ler(PluginCall call) {
               try {
                 JSArray arr = new JSArray();
-                Uri base = imagensUri();
-                String[] cols;
-                if (Build.VERSION.SDK_INT >= 29) {
-                  cols = new String[] {
-                    MediaStore.Images.Media._ID,
-                    MediaStore.Images.Media.DATA,
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.RELATIVE_PATH,
-                    MediaStore.Images.Media.WIDTH,
-                    MediaStore.Images.Media.HEIGHT
-                  };
-                } else {
-                  cols = new String[] {
-                    MediaStore.Images.Media._ID,
-                    MediaStore.Images.Media.DATA,
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.WIDTH,
-                    MediaStore.Images.Media.HEIGHT
-                  };
+                int[] ocultas = new int[] { 0 };
+                int nf = lerColecao(imagensUri(), false, arr, ocultas);
+                int nv = 0;
+                try {
+                  nv = lerColecao(videosUri(), true, arr, ocultas);
+                } catch (Exception e) {
+                  // sem acesso a vídeos: segue só com as fotos
                 }
-          
-                ContentResolver cr = getContext().getContentResolver();
-                Cursor c = cr.query(base, cols, null, null, MediaStore.Images.Media.DATE_ADDED + " DESC");
-                if (c != null) {
-                  int ci = c.getColumnIndex(MediaStore.Images.Media._ID);
-                  int cd = c.getColumnIndex(MediaStore.Images.Media.DATA);
-                  int cn = c.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME);
-                  int crp = c.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH);
-                  int cw = c.getColumnIndex(MediaStore.Images.Media.WIDTH);
-                  int ch = c.getColumnIndex(MediaStore.Images.Media.HEIGHT);
-                  while (c.moveToNext()) {
-                    String p = cd >= 0 ? c.getString(cd) : "";
-                    String nome = cn >= 0 ? c.getString(cn) : "";
-                    String rel = crp >= 0 ? c.getString(crp) : "";
-                    if (p == null) p = "";
-                    if (p.contains("/.")) continue;
-                    JSObject o = new JSObject();
-                    o.put("path", p);
-                    o.put("nome", nome == null ? "" : nome);
-                    o.put("pasta", rel == null ? "" : rel);
-                    o.put("uri", ContentUris.withAppendedId(base, c.getLong(ci)).toString());
-                    o.put("w", cw >= 0 ? c.getInt(cw) : 0);
-                    o.put("h", ch >= 0 ? c.getInt(ch) : 0);
-                    arr.put(o);
-                  }
-                  c.close();
-                }
-          
                 android.util.DisplayMetrics dm = new android.util.DisplayMetrics();
                 getActivity().getWindowManager().getDefaultDisplay().getRealMetrics(dm);
                 JSObject res = new JSObject();
                 res.put("fotos", arr);
+                res.put("nFotos", nf);
+                res.put("nVideos", nv);
+                res.put("ocultas", ocultas[0]);
                 res.put("telaW", dm.widthPixels);
                 res.put("telaH", dm.heightPixels);
                 call.resolve(res);
@@ -235,49 +323,142 @@ jobs:
                 call.reject("Erro ao ler a galeria: " + e.getMessage());
               }
             }
-          
+
+            // Carrega uma versão pequena da imagem/vídeo (muito mais rápido que abrir a foto inteira).
+            private Bitmap carregar(Uri u, int lado) {
+              ContentResolver cr = getContext().getContentResolver();
+              if (Build.VERSION.SDK_INT >= 29) {
+                try {
+                  return cr.loadThumbnail(u, new android.util.Size(lado, lado), null);
+                } catch (Exception ignored) { }
+              }
+              try {
+                BitmapFactory.Options o = new BitmapFactory.Options();
+                o.inJustDecodeBounds = true;
+                InputStream in = cr.openInputStream(u);
+                if (in == null) return null;
+                try { BitmapFactory.decodeStream(in, null, o); } finally { in.close(); }
+                int s = 1;
+                int m = Math.max(o.outWidth, o.outHeight);
+                while (m / (s * 2) >= lado) s *= 2;
+                BitmapFactory.Options o2 = new BitmapFactory.Options();
+                o2.inSampleSize = s;
+                InputStream in2 = cr.openInputStream(u);
+                if (in2 == null) return null;
+                try { return BitmapFactory.decodeStream(in2, null, o2); } finally { in2.close(); }
+              } catch (Exception e) {
+                return null;
+              }
+            }
+
+            @PluginMethod
+            public void miniatura(final PluginCall call) {
+              final String s = call.getString("uri");
+              if (s == null || s.isEmpty()) {
+                call.reject("Sem endereço da mídia.");
+                return;
+              }
+              pool.execute(new Runnable() {
+                @Override
+                public void run() {
+                  try {
+                    File dir = new File(getContext().getCacheDir(), "thumbs");
+                    dir.mkdirs();
+                    File f = new File(dir, "t" + Math.abs(s.hashCode()) + ".jpg");
+                    if (!f.exists() || f.length() == 0) {
+                      Bitmap b = carregar(Uri.parse(s), 360);
+                      if (b == null) {
+                        call.reject("Sem miniatura.");
+                        return;
+                      }
+                      FileOutputStream out = new FileOutputStream(f);
+                      try { b.compress(Bitmap.CompressFormat.JPEG, 82, out); } finally { out.close(); }
+                      b.recycle();
+                    }
+                    JSObject r = new JSObject();
+                    r.put("path", f.getAbsolutePath());
+                    call.resolve(r);
+                  } catch (Exception e) {
+                    call.reject("Erro na miniatura: " + e.getMessage());
+                  }
+                }
+              });
+            }
+
+            @PluginMethod
+            public void abrirExterno(PluginCall call) {
+              String s = call.getString("uri");
+              String tipo = call.getString("tipo", "video/*");
+              if (s == null || s.isEmpty()) {
+                call.reject("Sem endereço da mídia.");
+                return;
+              }
+              try {
+                android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+                i.setDataAndType(Uri.parse(s), tipo);
+                i.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                getActivity().startActivity(i);
+                call.resolve();
+              } catch (Exception e) {
+                call.reject("Nenhum app encontrado para abrir.");
+              }
+            }
+
             @PluginMethod
             public void analisarLote(final PluginCall call) {
-              final JSArray uris;
+              final ArrayList<String> lista = new ArrayList<>();
               try {
-                uris = call.getArray("uris");
-                if (uris == null || uris.length() == 0) {
-                  JSObject r = new JSObject();
-                  r.put("resultados", new JSArray());
-                  call.resolve(r);
-                  return;
+                JSArray uris = call.getArray("uris");
+                if (uris != null) {
+                  for (int i = 0; i < uris.length(); i++) lista.add(uris.getString(i));
                 }
               } catch (Exception e) {
                 call.reject("Lote inválido: " + e.getMessage());
                 return;
               }
-          
+              if (lista.isEmpty()) {
+                JSObject r = new JSObject();
+                r.put("resultados", new JSArray());
+                call.resolve(r);
+                return;
+              }
+
               new Thread(new Runnable() {
                 @Override
                 public void run() {
-                  ImageLabelerOptions options = new ImageLabelerOptions.Builder()
-                    .setConfidenceThreshold(0.55f)
-                    .build();
-                  ImageLabeler labeler = ImageLabeling.getClient(options);
-                  JSArray resultados = new JSArray();
                   try {
-                    for (int i = 0; i < uris.length(); i++) {
-                      String s = uris.getString(i);
-                      JSObject item = new JSObject();
-                      JSArray rotulos = new JSArray();
-                      try {
-                        InputImage image = InputImage.fromFilePath(getContext(), Uri.parse(s));
-                        List<ImageLabel> labels = Tasks.await(labeler.process(image));
-                        int n = 0;
-                        for (ImageLabel label : labels) {
-                          if (n++ >= 5) break;
-                          rotulos.put(label.getText());
+                    ArrayList<Future<JSArray>> futuros = new ArrayList<>();
+                    for (final String s : lista) {
+                      futuros.add(pool.submit(new Callable<JSArray>() {
+                        @Override
+                        public JSArray call() {
+                          JSArray rotulos = new JSArray();
+                          Bitmap b = null;
+                          try {
+                            b = carregar(Uri.parse(s), 320);
+                            if (b != null) {
+                              InputImage image = InputImage.fromBitmap(b, 0);
+                              List<ImageLabel> labels = Tasks.await(rotulador().process(image));
+                              int n = 0;
+                              for (ImageLabel label : labels) {
+                                if (n++ >= 6) break;
+                                rotulos.put(label.getText());
+                              }
+                            }
+                          } catch (Exception ignored) {
+                            // Uma foto que não possa ser lida não interrompe o lote.
+                          } finally {
+                            if (b != null) b.recycle();
+                          }
+                          return rotulos;
                         }
-                      } catch (Exception ignored) {
-                        // Uma foto que não possa ser decodificada não interrompe o lote.
-                      }
-                      item.put("uri", s);
-                      item.put("rotulos", rotulos);
+                      }));
+                    }
+                    JSArray resultados = new JSArray();
+                    for (int i = 0; i < lista.size(); i++) {
+                      JSObject item = new JSObject();
+                      item.put("uri", lista.get(i));
+                      item.put("rotulos", futuros.get(i).get());
                       resultados.put(item);
                     }
                     JSObject out = new JSObject();
@@ -285,13 +466,11 @@ jobs:
                     call.resolve(out);
                   } catch (Exception e) {
                     call.reject("Erro na análise das imagens: " + e.getMessage());
-                  } finally {
-                    try { labeler.close(); } catch (Exception ignored) { }
                   }
                 }
               }).start();
             }
-          
+
             @PluginMethod
             public void apagar(PluginCall call) {
               try {
@@ -305,10 +484,10 @@ jobs:
                   call.reject("O Android limita uma solicitação a 2000 fotos por vez.");
                   return;
                 }
-          
+
                 ArrayList<Uri> uris = new ArrayList<>();
                 for (int i = 0; i < arr.length(); i++) uris.add(Uri.parse(arr.getString(i)));
-          
+
                 if (Build.VERSION.SDK_INT >= 30) {
                   android.app.PendingIntent request = permanente
                     ? MediaStore.createDeleteRequest(getContext().getContentResolver(), uris)
@@ -332,7 +511,7 @@ jobs:
                 call.reject("Erro ao excluir: " + e.getMessage());
               }
             }
-          
+
             @ActivityCallback
             private void apagarResultado(PluginCall call, ActivityResult result) {
               JSObject r = new JSObject();
@@ -347,7 +526,7 @@ jobs:
               }
               call.resolve(r);
             }
-          
+
             @PermissionCallback
             private void depoisPermissaoApagar(PluginCall call) {
               if (getPermissionState(alias()) == PermissionState.GRANTED) apagar(call);
@@ -357,16 +536,16 @@ jobs:
           FILE_GaleriaPlugin_java
           cat > ConfirmMediaActivity.java <<'FILE_ConfirmMediaActivity_java'
           package com.tobias.galeria;
-          
+
           import android.app.Activity;
           import android.app.PendingIntent;
           import android.content.Intent;
           import android.os.Bundle;
-          
+
           public class ConfirmMediaActivity extends Activity {
             public static final String EXTRA_PENDING_INTENT = "pendingIntent";
             private static final int REQUEST = 7401;
-          
+
             @Override
             protected void onCreate(Bundle savedInstanceState) {
               super.onCreate(savedInstanceState);
@@ -383,7 +562,7 @@ jobs:
                 finish();
               }
             }
-          
+
             @Override
             protected void onActivityResult(int requestCode, int resultCode, Intent data) {
               super.onActivityResult(requestCode, resultCode, data);
@@ -396,10 +575,10 @@ jobs:
           FILE_ConfirmMediaActivity_java
           cat > MainActivity.java <<'FILE_MainActivity_java'
           package com.tobias.galeria;
-          
+
           import android.os.Bundle;
           import com.getcapacitor.BridgeActivity;
-          
+
           public class MainActivity extends BridgeActivity {
             @Override
             public void onCreate(Bundle savedInstanceState) {
@@ -426,7 +605,7 @@ jobs:
           sed -i '/^dependencies[[:space:]]*{/a\    implementation "com.google.mlkit:image-labeling:17.0.9"' "$GRADLE"
 
           MANIFEST=android/app/src/main/AndroidManifest.xml
-          sed -i '/<manifest /a\    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />' "$MANIFEST"
+          sed -i '/<manifest /a\    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />' "$MANIFEST"
           sed -i '/<\/application>/i\        <activity android:name=".ConfirmMediaActivity" android:exported="false" />' "$MANIFEST"
 
           mkdir -p android/app/src/main/java/com/tobias/galeria
@@ -442,8 +621,10 @@ jobs:
           grep -q 'com.google.mlkit:image-labeling:17.0.9' android/app/build.gradle
           grep -q 'ConfirmMediaActivity' android/app/src/main/AndroidManifest.xml
           grep -q 'GaleriaPlugin.class' android/app/src/main/java/com/tobias/galeria/MainActivity.java
+          grep -q 'READ_MEDIA_VIDEO' android/app/src/main/AndroidManifest.xml
+          grep -q 'miniatura' android/app/src/main/java/com/tobias/galeria/GaleriaPlugin.java
 
-      - name: Montar o APK v7
+      - name: Montar o APK v8
         shell: bash
         run: |
           set -e
