@@ -44,11 +44,12 @@ jobs:
           #vw{position:fixed;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:9}
           #vw img{max-width:100%;max-height:100%}
           </style></head><body>
-          <div id="hd"></div><p id="m"></p><div id="app"></div><p id="dx"></p>
+          <div id="hd"><h1>Galeria</h1><p class="sub">Carregando…</p></div><p id="m"></p><div id="app"></div><p id="dx"></p>
           <div id="vw"><img alt=""></div>
           <script>
-          var items=[],beachDone=false,lim=900,VER='v3';
-          var Galeria=Capacitor.registerPlugin('Galeria');
+          var items=[],beachDone=false,lim=900,VER='v4';
+          var Galeria=(window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Galeria)||null;
+          window.onerror=function(m){var e=document.querySelector('#m');if(e)e.textContent='Erro no app: '+m};
           function $(s){return document.querySelector(s)}
           function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
           function src(p){return Capacitor.convertFileSrc(p)}
@@ -103,10 +104,12 @@ jobs:
           }
           $('#vw').onclick=function(){this.style.display='none'};
           async function diag(){
+            if(!Galeria){$('#dx').textContent=VER+' · modulo Galeria nao encontrado no app';return}
             try{var r=await Galeria.estado();$('#dx').textContent=VER+' · Android API '+r.sdk+' · permissão: '+r.permissao}
             catch(e){$('#dx').textContent=VER+' · diagnóstico indisponível: '+(e.message||e)}
           }
           async function ler(){
+            if(!Galeria){setm('O módulo da galeria não foi carregado no app.');return}
             setm('Lendo a galeria…');
             try{
               var r=await Galeria.listar();
