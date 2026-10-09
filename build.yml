@@ -1,0 +1,1038 @@
+name: Gerar APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Criar arquivos do app v11
+        shell: bash
+        run: |
+          set -e
+          mkdir -p www
+          cat > www/index.html <<'FILE_index_html'
+          <!doctype html>
+          <html lang="pt-BR"><head><meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+          <link rel="stylesheet" href="style.css">
+          </head><body>
+          <div id="sp"><svg viewBox="18 18 72 72" xmlns="http://www.w3.org/2000/svg"><g transform="rotate(-12 54 54)"><path fill="#454B53" d="M41,30 H67 A7,7 0 0 1 74,37 V71 A7,7 0 0 1 67,78 H41 A7,7 0 0 1 34,71 V37 A7,7 0 0 1 41,30 Z"/></g><g transform="rotate(6 54 54)"><path fill="#FFC531" d="M41,30 H67 A7,7 0 0 1 74,37 V71 A7,7 0 0 1 67,78 H41 A7,7 0 0 1 34,71 V37 A7,7 0 0 1 41,30 Z"/><path fill="#1B1400" d="M39,71 L49.5,55 L56,64.5 L61,58 L69,71 Z"/><path fill="#1B1400" d="M63,39.5 A4.5,4.5 0 1 1 63,48.5 A4.5,4.5 0 1 1 63,39.5 Z"/></g><path fill="#FFFFFF" d="M33,29 L34.6,32.4 L38,34 L34.6,35.6 L33,39 L31.4,35.6 L28,34 L31.4,32.4 Z"/></svg><b>Organiza</b><span>suas fotos, em ordem</span></div>
+          <div id="hd"><h1>Organiza</h1><p class="sub">Carregando…</p></div>
+          <p id="m"></p><div id="pb"><i></i></div><div id="app"></div><p id="dx"></p>
+          <div id="cta"><button id="ctab"></button></div>
+          <div id="vw"><div id="vt"><button id="vx">✕</button><span id="vc"></span><span class="vb"><button id="vn">ⓘ</button><button id="vd">🗑</button></span></div><img id="vim" alt=""><button id="vp">▶ Reproduzir</button><div id="vi"></div></div>
+          <script src="app.js"></script>
+          </body></html>
+          FILE_index_html
+          cat > www/style.css <<'FILE_style_css'
+          *{box-sizing:border-box}
+          :root{color-scheme:dark;--bg:#0c0d0f;--s1:#17191c;--s2:#212428;--tx:#f2f3f4;--mu:#8d9399;--ac:#ffc531;--acx:#1b1400}
+          body{margin:0;font:16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx);padding:calc(env(safe-area-inset-top,0px) + 14px) 12px 44px}
+          body.viewer-open{overflow:hidden}body.cta-on{padding-bottom:140px}
+          h1{font-size:1.9rem;margin:0;font-weight:800;letter-spacing:-.02em}.sub{color:var(--mu);margin:4px 0 14px;font-size:.92rem}
+          button{font:inherit;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+          .pri{display:block;width:100%;background:var(--ac);color:var(--acx);border-radius:28px;padding:16px 14px;font-weight:800;font-size:1.04rem}
+          .seg{display:flex;background:var(--s1);border-radius:16px;padding:4px;margin:14px 0 12px}.seg button{flex:1;padding:10px;border-radius:12px;background:transparent;color:var(--mu);font-weight:700;font-size:.92rem}.seg button.on{background:var(--s2);color:var(--tx)}
+          .tool{display:flex;align-items:center;gap:12px;background:var(--s1);border-radius:18px;padding:13px 14px;width:100%;text-align:left;color:var(--tx);margin-bottom:14px}.tool .ic{width:44px;height:44px;border-radius:14px;background:var(--s2);color:var(--ac);display:flex;align-items:center;justify-content:center;font-size:1.35rem;flex:none}.tool .bx{display:flex;flex-direction:column;min-width:0}.tool b{font-size:1rem}.tool .bx span{color:var(--mu);font-size:.82rem;margin-top:2px}.tool .ar{margin-left:auto;color:var(--mu);font-size:1.6rem}
+          #m{color:var(--ac);margin:7px 2px;min-height:1.1em;font-size:.88rem}.sh{margin:20px 2px 8px;font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);font-weight:800}
+          #pb{display:none;height:5px;background:var(--s2);border-radius:8px;overflow:hidden;margin:4px 0 9px}#pb i{display:block;height:100%;width:0;background:var(--ac);transition:width .12s linear}
+          #dx{color:#555b61;font-size:.7rem;margin-top:25px}.vazio,.nota{color:var(--mu);font-size:.9rem;margin:14px 2px;line-height:1.4}
+          .albums{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.card{position:relative;aspect-ratio:1.1;border-radius:18px;overflow:hidden;background:var(--s1);padding:0;color:#fff;text-align:left}.card img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover}.card .t{position:absolute;left:0;right:0;bottom:0;padding:36px 12px 11px;background:linear-gradient(transparent,rgba(0,0,0,.82));display:flex;flex-direction:column}.card .t b{font-size:1rem;line-height:1.15;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.card .t span{font-size:.8rem;color:#d3d7da;margin-top:2px}
+          .top{position:sticky;top:0;z-index:20;background:var(--bg);margin:calc(-1*(env(safe-area-inset-top,0px) + 14px)) -12px 0;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 4px}.top .sub{margin:0 0 8px 4px}
+          .tb{display:flex;align-items:center;gap:4px;min-height:52px}.ib{flex:none;width:46px;height:46px;border-radius:23px;background:transparent;color:var(--tx);font-size:1.55rem;line-height:1}.tt{flex:1;font-size:1.5rem;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
+          .chips{display:flex;gap:8px;overflow-x:auto;padding:6px 0 10px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}.chip{flex:none;border-radius:18px;padding:8px 14px;background:var(--s2);color:var(--tx);font-weight:700;font-size:.86rem}.chip.on{background:var(--ac);color:var(--acx)}
+          .dh{display:flex;align-items:center;justify-content:space-between;margin:20px 2px 10px}.dh .d{font-size:1.3rem;color:var(--mu);font-weight:600}.dh .r{display:flex;align-items:center}.dh .z{color:var(--mu);font-size:1rem}
+          .ck{display:none;width:30px;height:30px;border-radius:15px;border:2px solid #7a8087;align-items:center;justify-content:center;color:transparent;font-size:1rem;font-weight:800;flex:none}
+          #app.sel .dh .ck{display:inline-flex;margin-left:12px}.dh .ck.on{background:var(--ac);border-color:var(--ac);color:var(--acx)}
+          .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+          .tile{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--s1)}.tile img{width:100%;height:100%;object-fit:cover;display:block}
+          .tile .sz,.tile .vd{position:absolute;bottom:5px;font-size:.7rem;font-weight:700;color:#fff;text-shadow:0 1px 3px #000,0 0 7px rgba(0,0,0,.85);pointer-events:none}.tile .sz{right:6px}.tile .vd{left:6px}
+          .tile .ck{position:absolute;right:6px;top:6px;background:rgba(0,0,0,.3)}#app.sel .tile .ck{display:inline-flex}.tile.on .ck{background:var(--ac);border-color:var(--ac);color:var(--acx)}.tile.on{outline:3px solid var(--ac);outline-offset:-3px}
+          .tile .keep{position:absolute;left:6px;top:6px;background:rgba(0,0,0,.6);color:#fff;font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:10px;pointer-events:none}.tile.on .keep{display:none}
+          .dg{background:var(--s1);border-radius:18px;padding:12px;margin:0 0 12px}.dg h3{margin:0 0 10px;font-size:.95rem;font-weight:700}
+          .mais{width:100%;margin-top:14px;padding:14px;border-radius:16px;background:var(--s2);color:var(--tx);font-weight:700}
+          #cta{display:none;position:fixed;left:0;right:0;bottom:0;padding:28px 16px calc(env(safe-area-inset-bottom,0px) + 14px);background:linear-gradient(transparent,var(--bg) 40%);z-index:30}#cta button{width:100%;padding:17px;border-radius:30px;background:var(--ac);color:var(--acx);font-weight:800;font-size:1.15rem}
+          #vw{position:fixed;left:0;top:0;right:0;bottom:0;background:#000;display:none;align-items:center;justify-content:center;z-index:99;touch-action:none}#vw img{max-width:100%;max-height:100%;object-fit:contain;transition:opacity .12s}
+          #vt{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 10px;background:linear-gradient(rgba(0,0,0,.75),transparent);z-index:2}#vt button{background:rgba(25,25,25,.65);color:#fff;border-radius:22px;padding:9px 14px;font-size:1rem;backdrop-filter:blur(5px)}#vc{color:#fff;font-size:.88rem;font-weight:700;text-shadow:0 1px 4px #000}
+          #vp{display:none;position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 30px);left:50%;transform:translateX(-50%);background:var(--ac);color:var(--acx);font-weight:800;border-radius:28px;padding:14px 26px;font-size:1rem;z-index:3}
+          #vim{transform-origin:center center;will-change:transform;-webkit-user-drag:none;user-select:none}#vim.anim{transition:opacity .12s,transform .22s ease}#vt,#vp{transition:opacity .2s}#vw.hid #vt,#vw.hid #vp{opacity:0;pointer-events:none}.vb{display:flex;gap:8px}#vw.info #vp{display:none!important}
+          #vi{display:none;position:absolute;left:0;right:0;bottom:0;max-height:64%;overflow:auto;background:rgba(10,16,20,.97);border-radius:20px 20px 0 0;padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 20px);z-index:5;font-size:.86rem;line-height:1.45;color:#edf3f6;touch-action:pan-y}#vi h4{margin:14px 0 5px;font-size:.7rem;letter-spacing:.09em;text-transform:uppercase;color:#8296a2}#vi h4:first-child{margin-top:0}#vi .k{color:#91a3ae}#vi .tag{display:inline-block;background:#19262d;border-radius:10px;padding:3px 9px;margin:2px 5px 2px 0;font-size:.78rem}#vi .ok{color:var(--ac);font-weight:800}
+          #sp{position:fixed;left:0;top:0;right:0;bottom:0;z-index:300;background:#0c0d0f;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s ease}#sp.out{opacity:0;pointer-events:none}#sp svg{width:150px;height:150px;animation:spop .7s ease both}#sp b{font-size:2rem;letter-spacing:-.02em;margin-top:14px}#sp span{color:#8d9399;font-size:.95rem;margin-top:4px}@keyframes spop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+          FILE_style_css
+          cat > www/app.js <<'FILE_app_js'
+          var VER='v11',items=[],lim=600,tela=null,cur=null,selMode=false,SDK=0,lp=false,vlist=[],vi=0,tx=0,swipeY=0;
+          var Galeria=(window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Galeria)||null;
+          var DET={},INFO='',MODO='assunto',SUBF='',VIEW='home',BUSY=false,DUPC=null,DIAS=[];
+          try{DET=JSON.parse(localStorage.getItem('det2')||'{}');MODO=localStorage.getItem('modo')==='pasta'?'pasta':'assunto'}catch(e){}
+          function salvar(){try{localStorage.setItem('det2',JSON.stringify(DET));localStorage.setItem('modo',MODO)}catch(e){}}
+          window.onerror=function(m){var e=document.querySelector('#m');if(e)e.textContent='Erro no app: '+m};
+          function $(s){return document.querySelector(s)}
+          function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+          function setm(t){$('#m').textContent=t}
+          function cand(i){var a=[];if(i.u)a.push(i.u.indexOf('content://')===0?i.u:Capacitor.convertFileSrc(i.u));a.push(Capacitor.convertFileSrc(encodeURI(i.p).replace(/#/g,'%23').replace(/\?/g,'%3F')));a.push(Capacitor.convertFileSrc(i.p));return a}
+          var TQ=[],TA=0,TC={};
+          function setT(t,p){t.im.onerror=function(){if(t.done)t.done()};t.im.src=Capacitor.convertFileSrc(p)}
+          function thumbV(i,im,done){var t={i:i,im:im,done:done},k=i.u||i.p;if(TC[k]){setT(t,TC[k]);return}if(!Galeria){if(done)done();return}TQ.push(t);tq()}
+          function tq(){while(TA<3&&TQ.length){TA++;(function(t){var k=t.i.u||t.i.p;Galeria.miniatura({uri:t.i.u}).then(function(r){if(r&&r.path){TC[k]=r.path;setT(t,r.path)}else if(t.done)t.done()},function(){if(t.done)t.done()}).then(function(){TA--;tq()})})(TQ.shift())}}
+          function pl(n,u,p){return n+' '+(n===1?u:(p||u+'s'))}
+          function fmtDur(ms){var s=Math.round((ms||0)/1000),m=Math.floor(s/60);s=s%60;return m+':'+(s<10?'0':'')+s}
+          function wrapV(im,i){var w=el('div','vcell');w.appendChild(im);w.appendChild(el('span',0,'▶ '+fmtDur(i.dur)));return w}
+          function load(i,im,done){if(i.v){thumbV(i,im,done);return}var c=cand(i),k=0;im.loading='lazy';im.alt='';im.onerror=function(){k++;if(k<c.length)im.src=c[k];else{i.bad=true;im.onerror=null;if(done)done()}};im.src=c[0]}
+          function capa(list,im,from,n){while(from<list.length&&list[from].bad)from++;if(from>=list.length||n>6){im.style.display='none';return}load(list[from],im,function(){capa(list,im,from+1,n+1)})}
+          function ehPrint(w,h){if(!tela||!w||!h)return false;var a=Math.max(w,h),b=Math.min(w,h),A=Math.max(tela.w,tela.h),B=Math.min(tela.w,tela.h);if(a===A&&b===B)return true;return Math.abs(a/b-A/B)<0.012&&a<=A*1.02&&a>=A*0.5}
+          var CONV=/whatsapp|telegram|messenger|signal|discord|mensagens|messages|sms|chat|conversa/i;
+          function baseAlbum(x){if(x.v)return 'Vídeos';var p=x.p||'',f=x.nome||p.split('/').pop(),rel=x.pasta||'',parts=p?p.split('/'):[],d=rel?rel.replace(/\\/g,'/').split('/').filter(Boolean).pop():(parts[parts.length-2]||'Outros');if(/^(sent|private)$/i.test(d))d=(parts[parts.length-3]||'Outros')+' · enviadas';if(/screenshot|captura/i.test(f)||/screenshots/i.test(p)){var m=f.match(/screenshot[_ -]?\d{8}[-_ ]?\d{4,6}[_ -](.+)\.\w+$/i);var app=m?m[1].replace(/[_-]+/g,' ').trim():'';if(CONV.test(app))return 'Prints · Conversas';return app?'Prints · '+app:'Prints'}if(ehPrint(x.w,x.h))return 'Prints recebidos';return d}
+          var CAT={};
+          (function(){function a(n,w,l){l.split('|').forEach(function(x){CAT[x]=[n,w]})}
+          a('Praia',6,'beach|seashore');a('Praia',4,'coast');a('Praia',3,'shore');a('Praia',2,'sand');
+          a('Mar e rios',5,'ocean|sea|lake|river|waterfall');a('Mar e rios',4,'wave|pond|bay|reservoir');a('Mar e rios',1,'water');
+          a('Piscina',6,'swimming pool');a('Piscina',4,'pool');
+          a('Pôr do sol',6,'sunset|sunrise|afterglow');a('Pôr do sol',3,'dusk|dawn|twilight');
+          a('Céu',4,'cumulus');a('Céu',1.2,'sky|cloud|atmosphere|horizon|daytime');
+          a('Neve',6,'snow|glacial landform');a('Neve',3,'winter|ice|freezing');
+          a('Montanhas',6,'mountain|volcano|mountain range|mountainous landforms');a('Montanhas',4,'valley|cliff|ridge|summit');a('Montanhas',3,'highland');a('Montanhas',2,'hill|terrain');
+          a('Natureza',5,'forest|jungle|woodland|desert|nature reserve|national park');a('Natureza',4,'wilderness|meadow|grassland');a('Natureza',3,'natural landscape|field|rural area|cave|park');a('Natureza',2,'rock|lawn|natural environment');a('Natureza',1.2,'tree|grass|plant community|vegetation|woody plant');
+          a('Plantas e flores',6,'flower|bouquet|houseplant|rose|succulent|cactus|flowerpot');a('Plantas e flores',5,'petal|flowering plant');a('Plantas e flores',4,'garden');a('Plantas e flores',3,'herb');a('Plantas e flores',1.5,'plant|leaf');
+          a('Fogos e fogueiras',6,'fireworks|bonfire|sparkler');a('Fogos e fogueiras',4,'fire|flame');
+          a('Selfies',6,'selfie');
+          a('Crianças e bebês',6,'baby|toddler|infant');a('Crianças e bebês',5,'child');a('Crianças e bebês',3,'boy|girl');
+          a('Festas e eventos',6,'wedding|bride|birthday|graduation|carnival|birthday cake');a('Festas e eventos',5,'party|celebration');a('Festas e eventos',4,'ceremony|dance');a('Festas e eventos',2,'crowd');
+          a('Pessoas',4,'person|human|people|smile|face|facial expression|beard|long hair|hairstyle|black hair|brown hair');a('Pessoas',2,'head|hair|eyebrow|forehead|chin|cheek|lip|nose|eyelash|gesture|muscle|thigh|sitting|standing|jaw|ear|eye|mouth|tooth|torso|abdomen');a('Pessoas',1.5,'skin|neck|shoulder|arm|hand|finger|leg|trunk');
+          a('Comida',6,'dish|cuisine|meal|dessert|cake|pizza|hamburger|sushi|ice cream|barbecue|seafood');a('Comida',5,'food|fast food|baked goods|fruit|vegetable|snack|bread|junk food|finger food|staple food|comfort food|breakfast|lunch|dinner|cookie|chocolate|meat|rice');a('Comida',4,'recipe|ingredient|produce');a('Comida',2,'tableware|bowl|plate|dishware');
+          a('Bebidas',6,'wine|beer|cocktail|soft drink|alcoholic beverage|smoothie');a('Bebidas',5,'coffee|juice|tea');a('Bebidas',4,'drink|beverage');a('Bebidas',3,'drinkware|mug');a('Bebidas',2,'bottle|cup');a('Bebidas',1.5,'glass');
+          a('Cachorros',6,'dog|puppy|dog breed|working dog|companion dog');a('Cachorros',2,'snout');
+          a('Gatos',6,'cat|kitten|felidae|small to medium-sized cats|domestic short-haired cat');a('Gatos',3,'whiskers');
+          a('Aves',6,'bird|water bird|parrot|duck|chicken');a('Aves',4,'beak');a('Aves',3,'feather');
+          a('Animais',6,'butterfly|rabbit|reptile|zoo|snake|turtle|elephant|lion|bear|monkey');a('Animais',5,'wildlife|insect|fish|horse|cattle|spider|cow|sheep|pig');a('Animais',4,'marine biology|arthropod');a('Animais',3,'animal|pet|terrestrial animal|invertebrate');a('Animais',2,'mammal|carnivore|fur|tail|paw');
+          a('Carros',6,'car|sports car|pickup truck|suv');a('Carros',5,'truck|bus|taxi|van');a('Carros',4,'motor vehicle|automotive exterior|license plate|bumper');a('Carros',3,'land vehicle|automotive design|automotive lighting|automotive tire|hood');a('Carros',2.5,'vehicle');a('Carros',2,'wheel|tire');
+          a('Motos',6,'motorcycle|motorcycling');a('Motos',5,'scooter');
+          a('Bicicletas',6,'bicycle|mountain bike');a('Bicicletas',5,'bicycle wheel|cycling|bicycle frame');
+          a('Barcos',6,'boat|ship|yacht|sailboat|canoe|kayak');a('Barcos',5,'watercraft');a('Barcos',4,'water transportation');
+          a('Aviões',6,'airplane|airliner|helicopter');a('Aviões',5,'aircraft|aviation|airport|runway');
+          a('Ruas e cidade',6,'cityscape');a('Ruas e cidade',5,'metropolitan area|crosswalk|intersection|alley');a('Ruas e cidade',4,'street|urban area|city|residential area|neighbourhood|sidewalk|street light|traffic|town|pedestrian');a('Ruas e cidade',3,'road|road surface|asphalt|lane|human settlement');a('Ruas e cidade',2,'infrastructure');
+          a('Prédios e monumentos',6,'skyscraper|castle|palace|mosque|cathedral');a('Prédios e monumentos',5,'tower|church|temple|monument|landmark|bridge|place of worship|historic site|tourist attraction|stadium|high-rise|tower block|office building|statue|fountain');a('Prédios e monumentos',4,'commercial building|apartment|condominium|sculpture');a('Prédios e monumentos',3,'facade');a('Prédios e monumentos',2.5,'architecture');a('Prédios e monumentos',2,'building');
+          a('Casas e interiores',6,'living room|bedroom|kitchen|bathroom|dining room');a('Casas e interiores',5,'interior design|couch|kitchen appliance|bed frame|mattress|bedding|toilet');a('Casas e interiores',4,'house|bed|home appliance|countertop|cabinetry|curtain|pillow|sink|wardrobe');a('Casas e interiores',3,'home|window covering|wood flooring|rug|shelf|real estate');a('Casas e interiores',2,'lamp|door|ceiling|flooring');a('Casas e interiores',1.5,'room|furniture|chair|table|window|property');a('Casas e interiores',1,'floor|wall');
+          a('Saúde e hospital',6,'hospital|medical equipment|stethoscope|x-ray|dentist|syringe|surgery');a('Saúde e hospital',5,'health care|medical|medicine|laboratory|pharmacy|pill');a('Saúde e hospital',3,'mask');
+          a('Escola e trabalho',6,'classroom|whiteboard|blackboard|auditorium|lecture|seminar');a('Escola e trabalho',5,'school|conference hall|presentation|university|student|education');a('Escola e trabalho',4,'office|meeting|projector screen|academic|learning|class|notebook|office supplies|stationery');a('Escola e trabalho',3,'desk|pen|marker|computer desk');
+          a('Documentos e anotações',6,'document|receipt|invoice');a('Documentos e anotações',5,'handwriting|ticket|brochure|newspaper|screenshot');a('Documentos e anotações',4,'paper|poster|menu|signage|advertising|banner|map|diagram');a('Documentos e anotações',3,'text|writing|paper product|page|sign|letter|label');a('Documentos e anotações',2,'font|number');
+          a('Livros',6,'book|textbook');a('Livros',5,'publication|bookcase|library|magazine');a('Livros',4,'reading');
+          a('Eletrônicos',6,'laptop|motherboard|video game console|game controller|computer keyboard|tablet computer');a('Eletrônicos',5,'mobile phone|smartphone|computer|personal computer|computer hardware|computer monitor|television|keyboard|camera|netbook|headphones|electronic component|circuit|router|smartwatch');a('Eletrônicos',4,'monitor|gadget|speaker|cable|electronics|phone');a('Eletrônicos',3,'electronic device|communication device|output device|input device|wire');a('Eletrônicos',2,'screen|display device|technology|multimedia');
+          a('Roupas e moda',6,'shoe|footwear|sneakers|costume|swimwear|bikini|boot|sandal');a('Roupas e moda',5,'clothing|dress|jeans|jacket|shirt|t-shirt|outerwear|handbag|jewellery|skirt|shorts|sportswear|uniform|tights|leggings|sock|jersey|wig|formal wear');a('Roupas e moda',4,'fashion|hat|sunglasses|trousers|watch|fashion design');a('Roupas e moda',3,'sleeve|bag|fashion accessory|glasses');
+          a('Beleza',6,'cosmetics|makeup|eye shadow|lipstick|nail polish|skin care|eyelash extensions');a('Beleza',5,'perfume|hair care|beauty|hair coloring');a('Beleza',4,'nail|personal care');
+          a('Futebol',6,'soccer');a('Futebol',5,'football');a('Basquete',6,'basketball');a('Tênis',6,'tennis');
+          a('Academia',6,'gym|weight training|dumbbell|barbell|bodybuilding|crossfit|yoga');a('Academia',5,'physical fitness|running');a('Academia',4,'exercise');
+          a('Esportes',6,'surfing|skateboard|martial arts|boxing|swimming|volleyball|skateboarding|skiing');a('Esportes',5,'athlete|racing|motorsport|marathon');a('Esportes',4,'sport|ball|ball game|team sport|sports equipment');a('Esportes',3,'player');
+          a('Arte e desenhos',6,'cartoon|anime|fan art|graffiti|watercolor paint');a('Arte e desenhos',5,'painting|drawing|illustration|animation|sketch|comics|mural|modern art|acrylic paint|child art');a('Arte e desenhos',4,'artwork|graphic design');a('Arte e desenhos',3,'art|visual arts|fictional character|paint');
+          a('Música e shows',6,'concert|guitar|piano|drum|nightclub|disc jockey|karaoke|festival');a('Música e shows',5,'musical instrument|singer|musician|microphone|string instrument');a('Música e shows',4,'music|stage|audience');a('Música e shows',3,'performance');
+          a('Jogos e brinquedos',6,'doll|video game|lego|stuffed toy|board game|playing card|action figure|plush|toy block|playground');a('Jogos e brinquedos',5,'toy|puzzle');a('Jogos e brinquedos',3,'game');
+          a('Produtos e compras',6,'supermarket|grocery store');a('Produtos e compras',5,'packaging and labeling|shopping|retail|shopping bag|tin can|package delivery');a('Produtos e compras',4,'carton|market|plastic bag|merchandise');a('Produtos e compras',3,'product|box|cardboard');
+          a('Ferramentas e obras',6,'hand tool|construction|machine tool|power tool|wrench|screwdriver|engine|scaffolding');a('Ferramentas e obras',5,'tool|auto part');a('Ferramentas e obras',4,'machine|engineering');a('Ferramentas e obras',3,'hardware|brick|cement');
+          })();
+          var IAALB=['Sem categoria','Fotos escuras','Noite e pouca luz','Fotos em grupo'];for(var kk in CAT)if(IAALB.indexOf(CAT[kk][0])<0)IAALB.push(CAT[kk][0]);
+          function decidir(d){var L=d.l||[],sc={},mx={},ev={},best='',bs=0,n;L.forEach(function(p){var c=CAT[String(p[0]).toLowerCase()];if(!c||p[1]<0.45)return;var v=c[1]*p[1];n=c[0];sc[n]=(sc[n]||0)+v;if(v>(mx[n]||0))mx[n]=v;(ev[n]=ev[n]||[]).push(p[0]+' '+Math.round(p[1]*100)+'%')});for(n in sc)if(mx[n]>=3&&sc[n]>bs){bs=sc[n];best=n}
+          var nt=d.n||0,m=d.m||0,r=d.r||0,b=(d.b==null?0.5:d.b),docS=sc['Documentos e anotações']||0,face=r>=1&&m>=0.006;
+          if(b<0.07)return{a:'Fotos escuras',why:'imagem quase toda escura'};
+          if((!face||nt>=300)&&(nt>=150||(nt>=90&&bs<5)||(nt>=35&&docS>=3)))return{a:'Documentos e anotações',why:'texto na imagem ('+nt+' caracteres)'+(docS?' + '+(ev['Documentos e anotações']||[]).join(', '):'')};
+          if(face){var kid=mx['Crianças e bebês']||0,party=mx['Festas e eventos']||0;if(kid>=3)return{a:'Crianças e bebês',why:'rosto + '+(ev['Crianças e bebês']||[]).join(', ')};if(r>=3)return{a:'Fotos em grupo',why:r+' rostos detectados'};if(r>=2&&party>=4)return{a:'Festas e eventos',why:r+' rostos + '+(ev['Festas e eventos']||[]).join(', ')};if(r===1&&m>=0.1)return{a:'Selfies',why:'1 rosto grande ('+Math.round(m*100)+'% da foto)'};return{a:'Pessoas',why:r+' rosto(s) detectado(s)'}}
+          var pessoa=Math.max(mx['Pessoas']||0,mx['Selfies']||0,mx['Crianças e bebês']||0,mx['Festas e eventos']||0)>=3,corpo={'Roupas e moda':1,'Beleza':1,'Academia':1,'Esportes':1,'Música e shows':1};
+          if(pessoa&&(!best||corpo[best])){best=(mx['Crianças e bebês']||0)>=3?'Crianças e bebês':(mx['Festas e eventos']||0)>=3?'Festas e eventos':(mx['Selfies']||0)>=3?'Selfies':'Pessoas';return{a:best,why:'rótulos de pessoa: '+(ev[best]||[]).slice(0,4).join(', ')}}
+          if(best==='Cachorros'||best==='Gatos'){var o=best==='Cachorros'?'Gatos':'Cachorros';if((sc[o]||0)>=sc[best]*0.6){return{a:'Animais',why:'em dúvida entre cachorro e gato: '+(ev['Cachorros']||[]).concat(ev['Gatos']||[]).slice(0,4).join(', ')}}}
+          if(!best&&L[0]&&/^(sky|cloud|cumulus|atmosphere)$/i.test(L[0][0])&&L[0][1]>=0.7){best='Céu';ev[best]=[L[0][0]+' '+Math.round(L[0][1]*100)+'%']}
+          var fora={'Ruas e cidade':1,'Prédios e monumentos':1,'Natureza':1,'Céu':1,'Montanhas':1,'Mar e rios':1,'Praia':1};
+          if(best){if(b<0.2&&fora[best])return{a:'Noite e pouca luz',why:'cena de '+best.toLowerCase()+' com pouca luz'};return{a:best,why:(ev[best]||[]).slice(0,4).join(', ')}}
+          if(b<0.2)return{a:'Noite e pouca luz',why:'sem rótulo forte e pouca luz'};
+          return{a:'Sem categoria',why:L.length?'rótulos fracos ou genéricos: '+L.slice(0,3).map(function(p){return p[0]+' '+Math.round(p[1]*100)+'%'}).join(', '):'nenhum rótulo confiável'}}
+          var MACRO={};(function(){function m(a,s,l){l.split('|').forEach(function(n){MACRO[n]=[a,s]})}
+          m('Pessoas','Selfies','Selfies');m('Pessoas','Grupos','Fotos em grupo');m('Pessoas','Crianças e bebês','Crianças e bebês');m('Pessoas','Festas','Festas e eventos');m('Pessoas','Retratos','Pessoas');
+          m('Animais','Cachorros','Cachorros');m('Animais','Gatos','Gatos');m('Animais','Aves','Aves');m('Animais','Outros animais','Animais');
+          m('Comida e bebida','Comida','Comida');m('Comida e bebida','Bebidas','Bebidas');
+          m('Natureza','Praia e água','Praia|Mar e rios|Piscina');m('Natureza','Montanhas e neve','Montanhas|Neve');m('Natureza','Céu e pôr do sol','Céu|Pôr do sol');m('Natureza','Plantas e flores','Plantas e flores');m('Natureza','Paisagens','Natureza');
+          m('Cidade e lugares','Ruas','Ruas e cidade');m('Cidade e lugares','Prédios e monumentos','Prédios e monumentos');m('Cidade e lugares','Casas e interiores','Casas e interiores');m('Cidade e lugares','Escola e trabalho','Escola e trabalho');m('Cidade e lugares','Saúde','Saúde e hospital');
+          m('Veículos','Carros','Carros');m('Veículos','Motos','Motos');m('Veículos','Bicicletas','Bicicletas');m('Veículos','Barcos','Barcos');m('Veículos','Aviões','Aviões');
+          m('Documentos e anotações','Documentos','Documentos e anotações');m('Documentos e anotações','Livros','Livros');
+          m('Objetos e compras','Eletrônicos','Eletrônicos');m('Objetos e compras','Roupas e moda','Roupas e moda');m('Objetos e compras','Beleza','Beleza');m('Objetos e compras','Produtos','Produtos e compras');m('Objetos e compras','Ferramentas','Ferramentas e obras');
+          m('Arte e lazer','Esportes','Esportes|Futebol|Basquete|Tênis|Academia');m('Arte e lazer','Arte e desenhos','Arte e desenhos');m('Arte e lazer','Música e shows','Música e shows');m('Arte e lazer','Jogos e brinquedos','Jogos e brinquedos');m('Arte e lazer','Fogos e fogueiras','Fogos e fogueiras');
+          m('Outros','Sem categoria','Sem categoria');m('Outros','Noite e pouca luz','Noite e pouca luz');m('Outros','Fotos escuras','Fotos escuras');
+          })();
+          var ORDEM=['Pessoas','Animais','Comida e bebida','Natureza','Cidade e lugares','Veículos','Documentos e anotações','Objetos e compras','Arte e lazer','Prints','Vídeos','Outros'];
+          function chave(x){return x.u||x.p}
+          function subVideo(x){var p=String(x.p||'');if(/whatsapp/i.test(p))return 'WhatsApp';if(/screen.?record|gravaç/i.test(p))return 'Gravações de tela';if(/camera|câmera/i.test(p))return 'Câmera';var s=p.split('/');return s.length>1&&s[s.length-2]?s[s.length-2]:'Outros'}
+          function classe(x){if(x.v)return ['Vídeos',subVideo(x)];var b=baseAlbum(x);if(/^Prints/.test(b))return ['Prints',b==='Prints'?'Outros':b==='Prints · Conversas'?'Conversas':b==='Prints recebidos'?'Recebidos':b.replace('Prints · ','')];var d=DET[chave(x)];if(!d)return ['Outros','Aguardando a IA'];return MACRO[decidir(d).a]||['Outros','Sem categoria']}
+          function atribui(x){var c=MODO==='pasta'?[baseAlbum(x),'']:classe(x);x.a=c[0];x.sb=c[1]}
+          function groups(){var g={};items.forEach(function(i){if(i.bad)return;(g[i.a]=g[i.a]||[]).push(i)});return g}
+          function refresh(){if(VIEW==='dup')abrirDup(true);else if(VIEW==='album'&&cur&&groups()[cur])abrir(cur,true);else home()}
+          function fmtSz(b){b=b||0;if(b>=1073741824)return (b/1073741824).toFixed(1).replace('.',',')+' GB';if(b>=1048576)return (b/1048576).toFixed(1).replace('.',',')+' MB';if(b>=1024)return (b/1024).toFixed(1).replace('.',',')+' KB';return b+' B'}
+          function totSz(l){var t=0;l.forEach(function(i){t+=i.z||0});return t}
+          function diaDe(i){var ms=i.t||(i.d?i.d*1000:0);if(!ms)return 'Sem data';var d=new Date(ms),p=function(n){return (n<10?'0':'')+n};return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()}
+          function pendentes(){return items.filter(function(i){return !i.bad&&!i.v&&!i.pr&&!DET[chave(i)]})}
+          function semHash(){return items.filter(function(i){var d=DET[chave(i)];return !i.bad&&!i.v&&!i.pr&&d&&d.h===undefined})}
+          function home(){VIEW='home';TQ.length=0;cur=null;selMode=false;SUBF='';$('#cta').style.display='none';document.body.classList.remove('cta-on');var g=groups(),hd=$('#hd');hd.className='';hd.innerHTML='';hd.appendChild(el('h1',0,'Organiza'));var nf=0,nv=0;items.forEach(function(i){if(i.v)nv++;else nf++});hd.appendChild(el('p','sub',items.length?pl(nf,'foto')+(nv?' · '+pl(nv,'vídeo'):''):'Separe suas fotos por assunto automaticamente'));
+          var np=pendentes().length,b1=el('button','pri',!items.length?'Ler galeria e organizar com IA':np?'Organizar com IA · '+pl(np,'nova','novas'):'Organizar com IA');b1.onclick=organizar;hd.appendChild(b1);
+          var sg=el('div','seg');[['assunto','Assuntos'],['pasta','Pastas']].forEach(function(o){var b=el('button',MODO===o[0]?'on':'',o[1]);b.onclick=function(){if(MODO===o[0])return;MODO=o[0];salvar();items.forEach(atribui);home()};sg.appendChild(b)});hd.appendChild(sg);
+          if(items.length){var D=dups(),tl=el('button','tool'),bx=el('span','bx');bx.appendChild(el('b',0,'Duplicadas'));var st=D.extras?pl(D.extras,'cópia')+' · '+fmtSz(D.livre)+' para liberar':'Nenhuma cópia idêntica';if(D.pa.length)st+=' · '+pl(D.pa.length,'grupo parecido','grupos parecidos');bx.appendChild(el('span',0,st));tl.appendChild(el('span','ic','⧉'));tl.appendChild(bx);tl.appendChild(el('span','ar','›'));tl.onclick=function(){abrirDup()};hd.appendChild(tl)}
+          var app=$('#app');app.innerHTML='';app.className='';var ns=Object.keys(g);if(MODO==='assunto')ns.sort(function(a,b){var x=ORDEM.indexOf(a),y=ORDEM.indexOf(b);if(x<0)x=99;if(y<0)y=99;return x-y||g[b].length-g[a].length});else ns.sort(function(a,b){return g[b].length-g[a].length});
+          if(!ns.length){app.appendChild(el('p','vazio','Toque no botão acima para ler e organizar suas fotos.'));return}
+          var grid=el('div','albums');ns.forEach(function(n){var c=el('button','card'),im=el('img'),t=el('div','t');capa(g[n],im,0,0);t.appendChild(el('b',0,n));t.appendChild(el('span',0,pl(g[n].length,n==='Vídeos'?'vídeo':'foto')));c.appendChild(im);c.appendChild(t);c.onclick=function(){lim=600;abrir(n)};grid.appendChild(c)});app.appendChild(grid)}
+          function nsel(list){var c=0;list.forEach(function(i){if(i.s)c++});return c}
+          function pinta(i){if(i.el)i.el.classList.toggle('on',!!i.s)}
+          function sincG(){DIAS.forEach(function(d){if(d.ck)d.ck.classList.toggle('on',d.l.length>0&&d.l.every(function(i){return i.s}))})}
+          function chipsDe(all){var c={};all.forEach(function(i){if(i.sb)c[i.sb]=(c[i.sb]||0)+1});return Object.keys(c).sort(function(a,b){return c[b]-c[a]}).map(function(k){return [k,c[k]]})}
+          function barraCta(list){var c=$('#cta'),n=nsel(list);if(!selMode||!n){c.style.display='none';document.body.classList.remove('cta-on');return}var sel=list.filter(function(i){return i.s});$('#ctab').textContent='Excluir '+(n>1?n+' · ':'')+fmtSz(totSz(sel));$('#ctab').onclick=function(){apagar(sel)};c.style.display='block';document.body.classList.add('cta-on')}
+          function topo(n,all,list){var hd=$('#hd');hd.className='top';hd.innerHTML='';var tb=el('div','tb');if(!selMode){var bk=el('button','ib','←');bk.onclick=home;tb.appendChild(bk);tb.appendChild(el('div','tt',n));var bs=el('button','ib','☑');bs.onclick=function(){selMode=true;abrir(n,true)};tb.appendChild(bs)}else{var c=nsel(list),bc=el('button','ib','✕');bc.onclick=function(){all.forEach(function(i){i.s=false});selMode=false;abrir(n,true)};tb.appendChild(bc);tb.appendChild(el('div','tt',c?pl(c,'selecionada'):'Selecionar'));var bt=el('button','ib',c&&c===list.length?'☒':'☑');bt.onclick=function(){var todos=nsel(list)===list.length;list.forEach(function(i){i.s=!todos;pinta(i)});sincG();chrome(n,all,list)};tb.appendChild(bt)}hd.appendChild(tb);
+          var cs=chipsDe(all);if(cs.length>=2){var cr=el('div','chips'),b0=el('button',SUBF?'chip':'chip on','Todos '+all.length);b0.onclick=function(){SUBF='';all.forEach(function(i){i.s=false});abrir(n,true)};cr.appendChild(b0);cs.forEach(function(p){var b=el('button',SUBF===p[0]?'chip on':'chip',p[0]+' '+p[1]);b.onclick=function(){SUBF=p[0];all.forEach(function(i){i.s=false});abrir(n,true)};cr.appendChild(b)});hd.appendChild(cr)}}
+          function chrome(n,all,list){topo(n,all,list);barraCta(list)}
+          function mkTile(i){var t=el('div','tile'),im=el('img');t.appendChild(im);i.el=t;pinta(i);load(i,im,function(){im.style.display='none'});if(i.z)t.appendChild(el('span','sz',fmtSz(i.z)));if(i.v)t.appendChild(el('span','vd','▶ '+fmtDur(i.dur)));t.appendChild(el('span','ck','✓'));return t}
+          function abrir(n,keep){VIEW='album';TQ.length=0;cur=n;var all=groups()[n]||[];if(!keep){selMode=false;SUBF='';all.forEach(function(i){i.s=false})}if(SUBF&&!all.some(function(i){return i.sb===SUBF}))SUBF='';var list=SUBF?all.filter(function(i){return i.sb===SUBF}):all;chrome(n,all,list);var app=$('#app');app.innerHTML='';app.className=selMode?'sel':'';DIAS=[];var mapa={};list.slice(0,lim).forEach(function(i){var k=diaDe(i);if(!mapa[k]){mapa[k]={k:k,l:[]};DIAS.push(mapa[k])}mapa[k].l.push(i)});
+          DIAS.forEach(function(dg){var h=el('div','dh'),r=el('span','r'),ck=el('span','ck','✓');dg.ck=ck;r.appendChild(el('span','z',dg.l.length+' · '+fmtSz(totSz(dg.l))));r.appendChild(ck);h.appendChild(el('span','d',dg.k));h.appendChild(r);ck.onclick=function(){if(!selMode){selMode=true;app.className='sel'}var todos=dg.l.every(function(i){return i.s});dg.l.forEach(function(i){i.s=!todos;pinta(i)});sincG();chrome(n,all,list)};app.appendChild(h);var grid=el('div','grid');dg.l.forEach(function(i){var t=mkTile(i),tm;t.ontouchstart=function(){lp=false;tm=setTimeout(function(){lp=true;if(!selMode){selMode=true;app.className='sel'}i.s=true;pinta(i);sincG();chrome(n,all,list)},450)};t.ontouchend=t.ontouchmove=t.ontouchcancel=function(){clearTimeout(tm)};t.onclick=function(){if(lp){lp=false;return}if(selMode){i.s=!i.s;pinta(i);sincG();chrome(n,all,list)}else mostrar(list,list.indexOf(i))};grid.appendChild(t)});app.appendChild(grid)});
+          sincG();if(list.length>lim){var mb=el('button','mais','Mostrar mais');mb.onclick=function(){lim+=600;abrir(n,true)};app.appendChild(mb)}window.scrollTo(0,0)}
+          function abrirDup(keep){VIEW='dup';TQ.length=0;cur=null;selMode=true;var D=dups();if(!keep){D.ex.forEach(function(g){g.forEach(function(i,k){i.s=k>0})});D.pa.forEach(function(g){g.forEach(function(i){i.s=false})})}var todos=D.ex.concat(D.pa);
+          function sel(){var s=[];todos.forEach(function(g){g.forEach(function(i){if(i.s)s.push(i)})});return s}
+          function cta2(){var s=sel(),c=$('#cta');if(!s.length){c.style.display='none';document.body.classList.remove('cta-on');return}$('#ctab').textContent='Excluir '+s.length+' · '+fmtSz(totSz(s));$('#ctab').onclick=function(){apagar(s)};c.style.display='block';document.body.classList.add('cta-on')}
+          var hd=$('#hd');hd.className='top';hd.innerHTML='';var tb=el('div','tb'),bk=el('button','ib','←');bk.onclick=home;tb.appendChild(bk);tb.appendChild(el('div','tt','Duplicadas'));hd.appendChild(tb);hd.appendChild(el('p','sub',D.extras?pl(D.extras,'cópia')+' idênticas · '+fmtSz(D.livre)+' para liberar':'Nenhuma cópia idêntica encontrada'));
+          var app=$('#app');app.innerHTML='';app.className='sel dup';
+          function cartao(g,ex){var box=el('div','dg');box.appendChild(el('h3',0,ex?pl(g.length,'cópia')+' · '+fmtSz(g[0].z)+' cada':pl(g.length,'foto parecida','fotos parecidas')));var grid=el('div','grid');g.forEach(function(i,idx){var t=mkTile(i),tm;t.appendChild(el('span','keep','Manter'));t.ontouchstart=function(){lp=false;tm=setTimeout(function(){lp=true;mostrar(g,idx)},450)};t.ontouchend=t.ontouchmove=t.ontouchcancel=function(){clearTimeout(tm)};t.onclick=function(){if(lp){lp=false;return}if(!i.s){var resto=g.filter(function(y){return y!==i&&!y.s}).length;if(!resto){setm('Mantenha pelo menos uma foto de cada grupo.');return}}setm('');i.s=!i.s;pinta(i);cta2()};grid.appendChild(t)});box.appendChild(grid);return box}
+          if(D.ex.length){app.appendChild(el('div','sh','Idênticas · '+pl(D.ex.length,'grupo','grupos')));D.ex.slice(0,150).forEach(function(g){app.appendChild(cartao(g,true))})}
+          if(D.pa.length){app.appendChild(el('div','sh','Parecidas · '+pl(D.pa.length,'grupo','grupos')));app.appendChild(el('p','nota','Não são idênticas. Confira antes de marcar para excluir.'));D.pa.slice(0,150).forEach(function(g){app.appendChild(cartao(g,false))})}
+          if(!todos.length)app.appendChild(el('p','vazio','Nenhuma foto duplicada encontrada.'));if(semHash().length)app.appendChild(el('p','nota','Para achar também as fotos parecidas, volte e toque em "Organizar com IA".'));cta2();window.scrollTo(0,0)}
+          var VZ={s:1,x:0,y:0},G={m:'',lock:'',sx:0,sy:0,x0:0,y0:0,s0:1,d0:0,qx:0,qy:0,moved:false,lt:0,lx:0,ly:0,tt:0,dx:0,dy:0};
+          function W2(){var v=$('#vw');return{w:v.clientWidth||window.innerWidth||360,h:v.clientHeight||window.innerHeight||640}}
+          function ap(an){var im=$('#vim');im.classList[an?'add':'remove']('anim');im.style.transform='translate('+VZ.x+'px,'+VZ.y+'px) scale('+VZ.s+')'}
+          function limZ(){var d=W2(),im=$('#vim'),w=(im.offsetWidth||d.w)*VZ.s,h=(im.offsetHeight||d.h)*VZ.s,mx=Math.max(0,(w-d.w)/2),my=Math.max(0,(h-d.h)/2);VZ.x=Math.max(-mx,Math.min(mx,VZ.x));VZ.y=Math.max(-my,Math.min(my,VZ.y))}
+          function resetZ(an){VZ.s=1;VZ.x=0;VZ.y=0;ap(an);$('#vw').style.background='#000'}
+          function mostrar(list,idx){vlist=list;vi=idx;$('#vw').classList.remove('hid');showV();$('#vw').style.display='flex';document.body.classList.add('viewer-open')}
+          function fecharV(){fecharInfo();resetZ(false);$('#vw').style.display='none';$('#vw').classList.remove('hid');document.body.classList.remove('viewer-open')}
+          function showV(){var i=vlist[vi],im=$('#vim');fecharInfo();resetZ(false);$('#vp').style.display=i.v?'block':'none';$('#vc').textContent=(vi+1)+' / '+vlist.length;if(i.v){im.style.opacity='1';im.onload=null;im.onerror=null;thumbV(i,im,function(){});return}var c=cand(i),k=0;im.style.opacity='0';im.onerror=function(){k++;if(k<c.length)im.src=c[k];else im.style.opacity='1'};im.onload=function(){im.style.opacity='1'};im.src=c[0];var next=vlist[vi+1],prev=vlist[vi-1];if(next&&!next.v)new Image().src=cand(next)[0];if(prev&&!prev.v)new Image().src=cand(prev)[0]}
+          $('#vp').onclick=function(){var i=vlist[vi];if(!Galeria||!i||!i.v)return;Galeria.abrirExterno({uri:i.u,tipo:'video/*'}).catch(function(e){alert('Não foi possível abrir o vídeo: '+(e.message||e))})};
+          function nav(d){var k=vi+d;if(k<0||k>=vlist.length)return;vi=k;showV();VZ.x=d*70;ap(false);setTimeout(function(){VZ.x=0;ap(true)},16)}
+          function infoAberto(){return $('#vi').style.display==='block'}
+          function fecharInfo(){$('#vi').style.display='none';$('#vw').classList.remove('info')}
+          function nomeArq(p){return String(p||'').split('/').pop()}
+          function pastaArq(p){var s=String(p||'').split('/');s.pop();return s.join('/')}
+          function fmtTam(b){if(!b)return '—';return b>=1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' KB'}
+          function fmtData(i){var ms=i.t||(i.d?i.d*1000:0);if(!ms)return '—';try{return new Date(ms).toLocaleString('pt-BR')}catch(e){return String(ms)}}
+          function abrirInfo(){var i=vlist[vi];if(!i)return;var v=$('#vi');v.innerHTML='';function lin(k,t){var d=el('div');d.appendChild(el('span','k',k+': '));d.appendChild(el('span',0,t));v.appendChild(d)}
+          v.appendChild(el('h4',0,'Arquivo'));lin('Nome',nomeArq(i.p)||'—');lin('Pasta',pastaArq(i.p)||'—');lin('Data',fmtData(i));lin('Tamanho',fmtTam(i.z));lin(i.v?'Duração':'Resolução',i.v?fmtDur(i.dur):(i.w&&i.h?i.w+' × '+i.h:'—'));
+          v.appendChild(el('h4',0,'Álbum'));var dd=el('div');dd.appendChild(el('span','ok',(i.a||'—')+(i.sb?' › '+i.sb:'')));v.appendChild(dd);
+          if(!i.v){var d=DET[i.u||i.p];v.appendChild(el('h4',0,'O que a IA viu'));if(d){var de=decidir(d);lin('Decisão',de.a+' — '+de.why);var tg=el('div');(d.l||[]).slice(0,8).forEach(function(p){tg.appendChild(el('span','tag',p[0]+' '+Math.round(p[1]*100)+'%'))});if(!(d.l||[]).length)tg.appendChild(el('span','k','nenhum rótulo'));v.appendChild(tg);lin('Rostos',d.r?d.r+' (maior ocupa '+Math.round((d.m||0)*100)+'% da foto)':'nenhum');lin('Luz',Math.round((d.b==null?0.5:d.b)*100)+'%');lin('Texto lido',d.n?'('+d.n+' caracteres) '+(d.x||''):'nenhum')}else if(i.pr)v.appendChild(el('div','k','Prints não passam pela IA: o álbum vem do nome do arquivo.'));else v.appendChild(el('div','k','Ainda não analisada. Toque em "Organizar com IA".'))}
+          v.style.display='block';$('#vw').classList.add('info')}
+          $('#vn').onclick=function(){if(infoAberto())fecharInfo();else abrirInfo()};
+          function tgOk(e){var t=e.target;return !(t&&t.closest&&t.closest('#vt,#vp,#vi'))}
+          $('#vw').ontouchstart=function(e){if(!tgOk(e))return;if(infoAberto()){G.m='x';return}var d=W2(),T=e.touches;$('#vim').classList.remove('anim');if(T.length>=2){var p=T[0],q=T[1];G.m='pinch';G.d0=Math.hypot(p.clientX-q.clientX,p.clientY-q.clientY)||1;G.s0=VZ.s;var mx=(p.clientX+q.clientX)/2-d.w/2,my=(p.clientY+q.clientY)/2-d.h/2;G.qx=(mx-VZ.x)/VZ.s;G.qy=(my-VZ.y)/VZ.s;G.lock=''}else{G.m='drag';G.sx=T[0].clientX;G.sy=T[0].clientY;G.x0=VZ.x;G.y0=VZ.y;G.moved=false;G.lock='';G.dx=0;G.dy=0}};
+          $('#vw').ontouchmove=function(e){if(!G.m||G.m==='x')return;var d=W2(),T=e.touches;if(G.m==='pinch'&&T.length>=2){var p=T[0],q=T[1],dist=Math.hypot(p.clientX-q.clientX,p.clientY-q.clientY),ns=Math.max(1,Math.min(6,G.s0*dist/G.d0)),mx=(p.clientX+q.clientX)/2-d.w/2,my=(p.clientY+q.clientY)/2-d.h/2;VZ.s=ns;VZ.x=mx-ns*G.qx;VZ.y=my-ns*G.qy;limZ();ap(false);return}
+          if(G.m==='drag'&&T.length===1){var dx=T[0].clientX-G.sx,dy=T[0].clientY-G.sy;G.dx=dx;G.dy=dy;if(Math.abs(dx)+Math.abs(dy)>9)G.moved=true;if(VZ.s>1.02){VZ.x=G.x0+dx;VZ.y=G.y0+dy;limZ();ap(false);return}if(!G.lock&&G.moved)G.lock=Math.abs(dx)>Math.abs(dy)*1.1?'h':'v';if(G.lock==='h'){VZ.x=dx*0.85;VZ.y=0;ap(false)}else if(G.lock==='v'){VZ.x=dx*0.3;VZ.y=dy>0?dy:dy*0.25;ap(false);$('#vw').style.background='rgba(0,0,0,'+Math.max(0.25,1-Math.max(0,VZ.y)/700)+')'}}};
+          $('#vw').ontouchend=function(e){var T=e.touches||[];if(G.m==='x'){if(!T.length){G.m='';fecharInfo()}return}
+          if(G.m==='pinch'){if(T.length>=1){G.m='drag';G.sx=T[0].clientX;G.sy=T[0].clientY;G.x0=VZ.x;G.y0=VZ.y;G.moved=true;G.lock='z';return}if(VZ.s<1.05)resetZ(true);else{limZ();ap(true)}G.m='';return}
+          if(G.m!=='drag'||T.length)return;G.m='';var cx=G.sx,cy=G.sy;
+          if(!G.moved){var now=Date.now();if(now-G.lt<320&&Math.abs(cx-G.lx)<40&&Math.abs(cy-G.ly)<40){G.lt=0;clearTimeout(G.tt);var d=W2();if(VZ.s>1.05)resetZ(true);else{VZ.s=2.6;VZ.x=(cx-d.w/2)*(1-2.6);VZ.y=(cy-d.h/2)*(1-2.6);limZ();ap(true)}return}G.lt=now;G.lx=cx;G.ly=cy;clearTimeout(G.tt);G.tt=setTimeout(function(){$('#vw').classList.toggle('hid')},300);return}
+          if(VZ.s>1.02){limZ();ap(true);return}
+          if(G.lock==='h'){if(Math.abs(G.dx)>70){var dir=G.dx<0?1:-1;if(vi+dir>=0&&vi+dir<vlist.length){nav(dir);return}}VZ.x=0;ap(true);return}
+          if(G.lock==='v'){if(G.dy>120){fecharV();return}if(G.dy<-90){resetZ(true);abrirInfo();return}}
+          resetZ(true)};
+          $('#vw').ontouchcancel=function(){G.m='';if(VZ.s<1.05)resetZ(true)};
+          $('#vx').onclick=fecharV;
+          $('#vd').onclick=async function(){var ok=await apagar([vlist[vi]]);if(ok){vlist.splice(vi,1);if(!vlist.length){fecharV();refresh()}else{if(vi>=vlist.length)vi=vlist.length-1;showV()}}};
+          async function apagar(arr){if(!arr.length)return false;if(!Galeria){setm('Módulo da galeria indisponível.');return false}if(arr.length>2000){setm('Selecione no máximo 2000 fotos por vez.');return false}if(!confirm('Mover '+arr.length+' foto(s) para a lixeira do Android?'))return false;setm('Aguardando confirmação do Android…');try{var r=await Galeria.apagar({uris:arr.map(function(i){return i.u}),permanente:false});if(r.cancelado){setm('Exclusão cancelada.');return false}setm(r.ok+' foto(s) enviadas para a lixeira.');var rm={};arr.forEach(function(i){rm[i.u||i.p]=1});items=items.filter(function(i){return !rm[i.u||i.p]});selMode=false;salvar();DUPC=null;refresh();return r.ok>0}catch(e){setm('Não foi possível excluir: '+(e.message||e));return false}}
+          async function diag(){if(!Galeria){$('#dx').textContent=VER+' · módulo Galeria não encontrado no app';return ''}try{var r=await Galeria.estado();SDK=r.sdk;$('#dx').textContent=VER+' · Android API '+r.sdk+' · permissão: '+r.permissao+(INFO?' · '+INFO:'');return r.permissao}catch(e){$('#dx').textContent=VER+' · diagnóstico indisponível: '+(e.message||e);return ''}}
+          async function ler(voltar,quieto){if(!Galeria){setm('O módulo da galeria não foi carregado no app.');return}if(!quieto)setm('Lendo todas as fotos da galeria…');try{var r=await Galeria.listar();tela={w:r.telaW,h:r.telaH};items=r.fotos.map(function(x){var o={p:x.path,u:x.uri,w:x.w,h:x.h,v:x.tipo==='video',dur:x.dur||0,d:x.data||0,t:x.tirada||0,z:x.tam||0};o.pr=!o.v&&/^Prints/.test(baseAlbum(o));atribui(o);return o});items.sort(function(p,q){return (q.t||q.d*1000)-(p.t||p.d*1000)});INFO='lidos: '+(r.nFotos||0)+' fotos, '+(r.nVideos||0)+' vídeos'+(r.ocultas?', '+r.ocultas+' ocultos':'');if(!quieto)setm(items.length?items.length+' fotos encontradas.':'Nenhuma foto encontrada.');DUPC=null;if(voltar&&groups()[voltar])abrir(voltar);else refresh()}catch(e){setm('Não foi possível ler: '+(e.message||e))}diag()}
+          function dupKey(x){return (x.z>0&&x.w>0&&x.h>0)?x.z+'_'+x.w+'_'+x.h+'_'+(x.dur||0):''}
+          function hx(h){return [parseInt(h.slice(0,8),16)>>>0,parseInt(h.slice(8,16),16)>>>0]}
+          function popc(v){v=v-((v>>>1)&0x55555555);v=(v&0x33333333)+((v>>>2)&0x33333333);return Math.imul((v+(v>>>4))&0x0F0F0F0F,0x01010101)>>>24}
+          function ham(a,b){return popc((a[0]^b[0])>>>0)+popc((a[1]^b[1])>>>0)}
+          function hashOk(h){if(!h||h.length!==16)return false;var c=hx(h),n=popc(c[0])+popc(c[1]);return n>=10&&n<=54}
+          function ordemQ(g){return g.slice().sort(function(a,b){var pa=(a.w||0)*(a.h||0),pb=(b.w||0)*(b.h||0);if(pa!==pb)return pb-pa;if((a.z||0)!==(b.z||0))return (b.z||0)-(a.z||0);var ca=/camera|dcim/i.test(a.p||'')?0:1,cb=/camera|dcim/i.test(b.p||'')?0:1;if(ca!==cb)return ca-cb;return (a.t||a.d*1000||0)-(b.t||b.d*1000||0)})}
+          function dups(){if(DUPC)return DUPC;var by={},units=[];items.forEach(function(i){if(i.bad)return;var k=dupKey(i);if(!k){units.push([i]);return}(by[k]=by[k]||[]).push(i)});var ex=[];Object.keys(by).forEach(function(k){var g=by[k];if(g.length>1)ex.push(g);units.push(g)});
+          var cand=[];units.forEach(function(u){var r=u[0];if(r.v||r.pr)return;var d=DET[chave(r)];if(!d||!hashOk(d.h)||!r.w||!r.h)return;cand.push({u:u,h:hx(d.h),ar:r.w/r.h})});
+          var cl=[];cand.forEach(function(c){for(var k=0;k<cl.length;k++){var o=cl[k];if(Math.abs(o.ar-c.ar)<0.03&&ham(o.h,c.h)<=4){o.m.push(c);return}}cl.push({ar:c.ar,h:c.h,m:[c]})});
+          var pa=[],emPa={};cl.forEach(function(o){if(o.m.length<2||o.m.length>8)return;var mem=[];o.m.forEach(function(c){c.u.forEach(function(i){mem.push(i);emPa[chave(i)]=1})});pa.push(ordemQ(mem))});
+          ex=ex.filter(function(g){return !emPa[chave(g[0])]}).map(ordemQ);var livre=0,extras=0;ex.forEach(function(g){for(var k=1;k<g.length;k++){livre+=g[k].z||0;extras++}});
+          function pot(g){var t=0;for(var k=1;k<g.length;k++)t+=g[k].z||0;return t}ex.sort(function(a,b){return pot(b)-pot(a)});pa.sort(function(a,b){return pot(b)-pot(a)});
+          DUPC={ex:ex,pa:pa,livre:livre,extras:extras};return DUPC}
+          async function lotes(lista,tam,fn,onres){var pend=[];for(var k=0;k<lista.length;k+=tam){var part=lista.slice(k,k+tam),pr=fn(part.map(function(i){return i.u}));pr.catch(function(){});pend.push({part:part,pr:pr});if(pend.length>=2){var q=pend.shift();onres(q.part,await q.pr)}await new Promise(function(r){setTimeout(r,0)})}while(pend.length){var q2=pend.shift();onres(q2.part,await q2.pr)}}
+          async function organizar(){if(BUSY)return;if(!Galeria){setm('O módulo da galeria não foi carregado no app.');return}BUSY=true;try{if(!items.length){await ler(null,true);if(!items.length){setm('Nenhuma foto encontrada. Confira a permissão do app.');return}}await analisar()}finally{BUSY=false}}
+          async function analisar(){var pb=$('#pb'),erro='',t0=Date.now(),pend=pendentes(),reps=[],grp={};pend.forEach(function(i){var k=dupKey(i);if(k&&grp[k]){grp[k].push(i);return}if(k)grp[k]=[i];reps.push(i)});
+          var total=reps.length,feitas=0,ult=0;
+          function prog(txt,f,t){var rest=f>0?Math.round((Date.now()-t0)/1000/f*(t-f)):0;setm(txt+f+' de '+t+(rest>5?' · faltam ~'+(rest>=90?Math.round(rest/60)+' min':rest+' s'):''));pb.firstChild.style.width=Math.round(f*100/t)+'%'}
+          try{if(total){pb.style.display='block';await lotes(reps,24,function(u){return Galeria.analisarLote({uris:u})},function(part,r){(r.resultados||[]).forEach(function(x,j){var it=part[j];if(!it)return;var d={l:(x.rotulos||[]).map(function(o){return [o.t,o.c]}),x:x.texto||'',n:x.nTexto||0,r:x.rostos||0,m:x.maiorRosto||0,b:(x.brilho==null||x.brilho<0)?0.5:x.brilho,h:x.hash||''},k=dupKey(it),todos=k&&grp[k]?grp[k]:[it];todos.forEach(function(y){DET[chave(y)]=y===it?d:Object.assign({},d);atribui(y)})});feitas+=part.length;if(feitas-ult>=120){ult=feitas;salvar()}prog('Analisando com IA… ',feitas,total)})}
+          var sh=semHash();if(sh.length){pb.style.display='block';t0=Date.now();var f2=0;await lotes(sh,48,function(u){return Galeria.hashLote({uris:u})},function(part,r){(r.resultados||[]).forEach(function(x,j){var it=part[j],d=it&&DET[chave(it)];if(d)d.h=x.hash||''});f2+=part.length;prog('Procurando duplicadas… ',f2,sh.length)})}}catch(e){erro='Erro na IA: '+(e.message||e)}
+          pb.style.display='none';salvar();DUPC=null;items.forEach(atribui);refresh();var D=dups();setm(erro||(total?pl(pend.length,'foto organizada','fotos organizadas'):'Tudo já está organizado.')+(D.extras?' · '+fmtSz(D.livre)+' em duplicadas':''))}
+          var T0=Date.now(),SPF=false;
+          function fimSplash(){if(SPF)return;SPF=true;setTimeout(function(){var sp=$('#sp');sp.classList.add('out');setTimeout(function(){sp.style.display='none'},520)},Math.max(0,1100-(Date.now()-T0)))}
+          home();diag().then(function(p){return p==='granted'&&!items.length?ler(null,true):0}).then(fimSplash,fimSplash);setTimeout(fimSplash,4000);
+          FILE_app_js
+          cat > GaleriaPlugin.java <<'FILE_GaleriaPlugin_java'
+          package com.tobias.galeria;
+
+          import android.Manifest;
+          import android.content.ContentResolver;
+          import android.content.ContentUris;
+          import android.content.ContentValues;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.provider.MediaStore;
+          import android.database.Cursor;
+
+          import com.getcapacitor.JSArray;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.PermissionState;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.ActivityCallback;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+          import com.getcapacitor.annotation.Permission;
+          import com.getcapacitor.annotation.PermissionCallback;
+
+          import androidx.activity.result.ActivityResult;
+
+          import com.google.android.gms.tasks.Tasks;
+          import com.google.mlkit.vision.common.InputImage;
+          import com.google.mlkit.vision.label.ImageLabel;
+          import com.google.mlkit.vision.label.ImageLabeler;
+          import com.google.mlkit.vision.label.ImageLabeling;
+          import com.google.mlkit.vision.label.defaults.ImageLabelerOptions;
+
+          import android.graphics.Bitmap;
+          import android.graphics.BitmapFactory;
+          import com.google.mlkit.vision.face.Face;
+          import com.google.mlkit.vision.face.FaceDetection;
+          import com.google.mlkit.vision.face.FaceDetector;
+          import com.google.mlkit.vision.face.FaceDetectorOptions;
+          import com.google.mlkit.vision.text.Text;
+          import com.google.mlkit.vision.text.TextRecognition;
+          import com.google.mlkit.vision.text.TextRecognizer;
+          import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
+          import java.util.Arrays;
+          import java.util.HashSet;
+          import java.util.concurrent.TimeUnit;
+          import java.io.File;
+          import java.io.FileOutputStream;
+          import java.io.InputStream;
+          import java.io.IOException;
+          import java.util.concurrent.Callable;
+          import java.util.concurrent.ExecutorService;
+          import java.util.concurrent.Executors;
+          import java.util.concurrent.Future;
+          import java.util.ArrayList;
+          import java.util.Collection;
+          import java.util.HashMap;
+          import java.util.List;
+          import java.util.Map;
+
+          @CapacitorPlugin(name = "Galeria", permissions = {
+            @Permission(alias = "fotos", strings = { Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO }),
+            @Permission(alias = "fotosAntigo", strings = { Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE })
+          })
+          public class GaleriaPlugin extends Plugin {
+
+            private final ExecutorService pool = Executors.newFixedThreadPool(4);
+            private ImageLabeler labeler;
+
+            private FaceDetector detector;
+            private TextRecognizer leitor;
+
+            private static final HashSet<String> TEXTO_LIKE = new HashSet<String>(Arrays.asList(
+              "text", "font", "paper", "document", "handwriting", "writing", "paper product", "page", "poster", "menu",
+              "sign", "signage", "advertising", "banner", "brochure", "newspaper", "letter", "invoice", "ticket", "map",
+              "diagram", "screenshot", "label", "whiteboard", "blackboard", "number", "display device", "electronic device",
+              "screen", "computer monitor", "television", "product", "packaging and labeling", "box", "carton"));
+
+            private synchronized FaceDetector detectorRostos() {
+              if (detector == null) {
+                detector = FaceDetection.getClient(new FaceDetectorOptions.Builder()
+                  .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+                  .setMinFaceSize(0.05f)
+                  .build());
+              }
+              return detector;
+            }
+
+            private synchronized TextRecognizer leitorTexto() {
+              if (leitor == null) {
+                leitor = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+              }
+              return leitor;
+            }
+
+            // Impressão digital da imagem (dHash 64 bits): duas fotos iguais ou reduzidas dão hashes quase iguais.
+            private String dHash(Bitmap b) {
+              Bitmap m = Bitmap.createScaledBitmap(b, 144, 128, true);
+              Bitmap s = Bitmap.createScaledBitmap(m, 72, 64, true);
+              int[] px = new int[72 * 64];
+              s.getPixels(px, 0, 72, 0, 0, 72, 64);
+              double[][] g = new double[8][9];
+              for (int cy = 0; cy < 8; cy++) {
+                for (int cx = 0; cx < 9; cx++) {
+                  double soma = 0;
+                  for (int y = 0; y < 8; y++) {
+                    for (int x = 0; x < 8; x++) {
+                      int p = px[(cy * 8 + y) * 72 + cx * 8 + x];
+                      soma += 0.299 * ((p >> 16) & 255) + 0.587 * ((p >> 8) & 255) + 0.114 * (p & 255);
+                    }
+                  }
+                  g[cy][cx] = soma / 64.0;
+                }
+              }
+              long h = 0;
+              for (int cy = 0; cy < 8; cy++) {
+                for (int cx = 0; cx < 8; cx++) {
+                  h <<= 1;
+                  if (g[cy][cx] > g[cy][cx + 1]) h |= 1L;
+                }
+              }
+              if (s != m) s.recycle();
+              if (m != b) m.recycle();
+              StringBuilder hex = new StringBuilder(Long.toHexString(h));
+              while (hex.length() < 16) hex.insert(0, '0');
+              return hex.toString();
+            }
+
+            private double brilhoDe(Bitmap b) {
+              Bitmap s = Bitmap.createScaledBitmap(b, 24, 24, true);
+              int[] px = new int[24 * 24];
+              s.getPixels(px, 0, 24, 0, 0, 24, 24);
+              double soma = 0;
+              for (int p : px) {
+                int r = (p >> 16) & 255;
+                int g = (p >> 8) & 255;
+                int bl = p & 255;
+                soma += (0.299 * r + 0.587 * g + 0.114 * bl) / 255.0;
+              }
+              if (s != b) s.recycle();
+              return Math.round(soma / px.length * 100) / 100.0;
+            }
+
+            private synchronized ImageLabeler rotulador() {
+              if (labeler == null) {
+                labeler = ImageLabeling.getClient(new ImageLabelerOptions.Builder().setConfidenceThreshold(0.4f).build());
+              }
+              return labeler;
+            }
+
+            private Uri videosUri() {
+              if (Build.VERSION.SDK_INT >= 29) {
+                return MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL);
+              }
+              return MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+            }
+
+            private String alias() {
+              return Build.VERSION.SDK_INT >= 33 ? "fotos" : "fotosAntigo";
+            }
+
+            private Uri imagensUri() {
+              if (Build.VERSION.SDK_INT >= 29) {
+                return MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL);
+              }
+              return MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+            }
+
+            @PluginMethod
+            public void estado(PluginCall call) {
+              JSObject r = new JSObject();
+              r.put("sdk", Build.VERSION.SDK_INT);
+              r.put("permissao", getPermissionState(alias()).toString());
+              call.resolve(r);
+            }
+
+            @PluginMethod
+            public void listar(PluginCall call) {
+              if (getPermissionState(alias()) != PermissionState.GRANTED) {
+                requestPermissionForAlias(alias(), call, "depoisPermissao");
+                return;
+              }
+              ler(call);
+            }
+
+            @PermissionCallback
+            private void depoisPermissao(PluginCall call) {
+              if (getPermissionState(alias()) == PermissionState.GRANTED) {
+                ler(call);
+              } else {
+                call.reject("Permissão de fotos negada. Para ver a galeria inteira, permita acesso a todas as fotos em Configurações > Apps > Organiza > Permissões.");
+              }
+            }
+
+            private int lerColecao(Uri base, boolean video, JSArray arr, int[] ocultas) {
+              ArrayList<String> cl = new ArrayList<>();
+              cl.add(MediaStore.MediaColumns._ID);
+              cl.add(MediaStore.MediaColumns.DATA);
+              cl.add(MediaStore.MediaColumns.DISPLAY_NAME);
+              cl.add(MediaStore.MediaColumns.WIDTH);
+              cl.add(MediaStore.MediaColumns.HEIGHT);
+              cl.add(MediaStore.MediaColumns.DATE_ADDED);
+              cl.add(MediaStore.MediaColumns.SIZE);
+              if (Build.VERSION.SDK_INT >= 29) cl.add(MediaStore.MediaColumns.DATE_TAKEN);
+              if (Build.VERSION.SDK_INT >= 29) cl.add(MediaStore.MediaColumns.RELATIVE_PATH);
+              if (video) cl.add(MediaStore.Video.Media.DURATION);
+              String[] cols = cl.toArray(new String[0]);
+
+              int total = 0;
+              ContentResolver cr = getContext().getContentResolver();
+              Cursor c = cr.query(base, cols, null, null, MediaStore.MediaColumns.DATE_ADDED + " DESC");
+              if (c == null) return 0;
+              try {
+                int ci = c.getColumnIndex(MediaStore.MediaColumns._ID);
+                int cd = c.getColumnIndex(MediaStore.MediaColumns.DATA);
+                int cn = c.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME);
+                int crp = c.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH);
+                int cw = c.getColumnIndex(MediaStore.MediaColumns.WIDTH);
+                int ch = c.getColumnIndex(MediaStore.MediaColumns.HEIGHT);
+                int cdt = c.getColumnIndex(MediaStore.MediaColumns.DATE_ADDED);
+                int csz = c.getColumnIndex(MediaStore.MediaColumns.SIZE);
+                int ctk = c.getColumnIndex(MediaStore.MediaColumns.DATE_TAKEN);
+                int cdu = video ? c.getColumnIndex(MediaStore.Video.Media.DURATION) : -1;
+                while (c.moveToNext()) {
+                  String p = cd >= 0 ? c.getString(cd) : "";
+                  String nome = cn >= 0 ? c.getString(cn) : "";
+                  String rel = crp >= 0 ? c.getString(crp) : "";
+                  if (p == null) p = "";
+                  if (p.contains("/.")) {
+                    ocultas[0]++;
+                    continue;
+                  }
+                  JSObject o = new JSObject();
+                  o.put("path", p);
+                  o.put("nome", nome == null ? "" : nome);
+                  o.put("pasta", rel == null ? "" : rel);
+                  o.put("uri", ContentUris.withAppendedId(base, c.getLong(ci)).toString());
+                  o.put("w", cw >= 0 ? c.getInt(cw) : 0);
+                  o.put("h", ch >= 0 ? c.getInt(ch) : 0);
+                  o.put("tipo", video ? "video" : "foto");
+                  o.put("data", cdt >= 0 ? c.getLong(cdt) : 0L);
+                  o.put("dur", cdu >= 0 ? c.getLong(cdu) : 0L);
+                  o.put("tam", csz >= 0 ? c.getLong(csz) : 0L);
+                  o.put("tirada", ctk >= 0 ? c.getLong(ctk) : 0L);
+                  arr.put(o);
+                  total++;
+                }
+              } finally {
+                c.close();
+              }
+              return total;
+            }
+
+            private void ler(PluginCall call) {
+              try {
+                JSArray arr = new JSArray();
+                int[] ocultas = new int[] { 0 };
+                int nf = lerColecao(imagensUri(), false, arr, ocultas);
+                int nv = 0;
+                try {
+                  nv = lerColecao(videosUri(), true, arr, ocultas);
+                } catch (Exception e) {
+                  // sem acesso a vídeos: segue só com as fotos
+                }
+                android.util.DisplayMetrics dm = new android.util.DisplayMetrics();
+                getActivity().getWindowManager().getDefaultDisplay().getRealMetrics(dm);
+                JSObject res = new JSObject();
+                res.put("fotos", arr);
+                res.put("nFotos", nf);
+                res.put("nVideos", nv);
+                res.put("ocultas", ocultas[0]);
+                res.put("telaW", dm.widthPixels);
+                res.put("telaH", dm.heightPixels);
+                call.resolve(res);
+              } catch (Exception e) {
+                call.reject("Erro ao ler a galeria: " + e.getMessage());
+              }
+            }
+
+            // Carrega uma versão pequena da imagem/vídeo (muito mais rápido que abrir a foto inteira).
+            private Bitmap carregar(Uri u, int lado) {
+              ContentResolver cr = getContext().getContentResolver();
+              if (Build.VERSION.SDK_INT >= 29) {
+                try {
+                  return cr.loadThumbnail(u, new android.util.Size(lado, lado), null);
+                } catch (Exception ignored) { }
+              }
+              try {
+                BitmapFactory.Options o = new BitmapFactory.Options();
+                o.inJustDecodeBounds = true;
+                InputStream in = cr.openInputStream(u);
+                if (in == null) return null;
+                try { BitmapFactory.decodeStream(in, null, o); } finally { in.close(); }
+                int s = 1;
+                int m = Math.max(o.outWidth, o.outHeight);
+                while (m / (s * 2) >= lado) s *= 2;
+                BitmapFactory.Options o2 = new BitmapFactory.Options();
+                o2.inSampleSize = s;
+                InputStream in2 = cr.openInputStream(u);
+                if (in2 == null) return null;
+                try { return BitmapFactory.decodeStream(in2, null, o2); } finally { in2.close(); }
+              } catch (Exception e) {
+                return null;
+              }
+            }
+
+            @PluginMethod
+            public void miniatura(final PluginCall call) {
+              final String s = call.getString("uri");
+              if (s == null || s.isEmpty()) {
+                call.reject("Sem endereço da mídia.");
+                return;
+              }
+              pool.execute(new Runnable() {
+                @Override
+                public void run() {
+                  try {
+                    File dir = new File(getContext().getCacheDir(), "thumbs");
+                    dir.mkdirs();
+                    File f = new File(dir, "t" + Math.abs(s.hashCode()) + ".jpg");
+                    if (!f.exists() || f.length() == 0) {
+                      Bitmap b = carregar(Uri.parse(s), 360);
+                      if (b == null) {
+                        call.reject("Sem miniatura.");
+                        return;
+                      }
+                      FileOutputStream out = new FileOutputStream(f);
+                      try { b.compress(Bitmap.CompressFormat.JPEG, 82, out); } finally { out.close(); }
+                      b.recycle();
+                    }
+                    JSObject r = new JSObject();
+                    r.put("path", f.getAbsolutePath());
+                    call.resolve(r);
+                  } catch (Exception e) {
+                    call.reject("Erro na miniatura: " + e.getMessage());
+                  }
+                }
+              });
+            }
+
+            @PluginMethod
+            public void abrirExterno(PluginCall call) {
+              String s = call.getString("uri");
+              String tipo = call.getString("tipo", "video/*");
+              if (s == null || s.isEmpty()) {
+                call.reject("Sem endereço da mídia.");
+                return;
+              }
+              try {
+                android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+                i.setDataAndType(Uri.parse(s), tipo);
+                i.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                getActivity().startActivity(i);
+                call.resolve();
+              } catch (Exception e) {
+                call.reject("Nenhum app encontrado para abrir.");
+              }
+            }
+
+            @PluginMethod
+            public void analisarLote(final PluginCall call) {
+              final ArrayList<String> lista = new ArrayList<>();
+              try {
+                JSArray uris = call.getArray("uris");
+                if (uris != null) {
+                  for (int i = 0; i < uris.length(); i++) lista.add(uris.getString(i));
+                }
+              } catch (Exception e) {
+                call.reject("Lote inválido: " + e.getMessage());
+                return;
+              }
+              if (lista.isEmpty()) {
+                JSObject r = new JSObject();
+                r.put("resultados", new JSArray());
+                call.resolve(r);
+                return;
+              }
+
+              new Thread(new Runnable() {
+                @Override
+                public void run() {
+                  try {
+                    ArrayList<Future<JSObject>> futuros = new ArrayList<>();
+                    for (final String s : lista) {
+                      futuros.add(pool.submit(new Callable<JSObject>() {
+                        @Override
+                        public JSObject call() {
+                          return analisarUma(s);
+                        }
+                      }));
+                    }
+                    JSArray resultados = new JSArray();
+                    for (int i = 0; i < lista.size(); i++) {
+                      resultados.put(futuros.get(i).get());
+                    }
+                    JSObject out = new JSObject();
+                    out.put("resultados", resultados);
+                    call.resolve(out);
+                  } catch (Exception e) {
+                    call.reject("Erro na análise das imagens: " + e.getMessage());
+                  }
+                }
+              }).start();
+            }
+
+            // Abre a foto uma vez só e usa 3 detectores: rótulos, rostos e texto.
+            private JSObject analisarUma(String s) {
+              JSObject item = new JSObject();
+              JSArray rotulos = new JSArray();
+              String texto = "";
+              int nTexto = 0;
+              int rostos = 0;
+              double maior = 0;
+              double brilho = -1;
+              String hash = "";
+              Bitmap b = null;
+              try {
+                b = carregar(Uri.parse(s), 640);
+                if (b != null) {
+                  brilho = brilhoDe(b);
+                  try { hash = dHash(b); } catch (Exception ignored) { }
+                  InputImage image = InputImage.fromBitmap(b, 0);
+
+                  double topo = 0;
+                  boolean pareceTexto = false;
+                  try {
+                    List<ImageLabel> labels = Tasks.await(rotulador().process(image), 20, TimeUnit.SECONDS);
+                    int n = 0;
+                    for (ImageLabel label : labels) {
+                      if (n++ >= 8) break;
+                      JSObject o = new JSObject();
+                      o.put("t", label.getText());
+                      o.put("c", Math.round(label.getConfidence() * 100) / 100.0);
+                      rotulos.put(o);
+                      if (label.getConfidence() > topo) topo = label.getConfidence();
+                      if (TEXTO_LIKE.contains(label.getText().toLowerCase())) pareceTexto = true;
+                    }
+                  } catch (Exception ignored) { }
+
+                  try {
+                    List<Face> fs = Tasks.await(detectorRostos().process(image), 20, TimeUnit.SECONDS);
+                    double area = (double) b.getWidth() * b.getHeight();
+                    for (Face f : fs) {
+                      android.graphics.Rect r = f.getBoundingBox();
+                      double fr = ((double) r.width() * r.height()) / area;
+                      if (fr > 0.004) {
+                        rostos++;
+                        if (fr > maior) maior = fr;
+                      }
+                    }
+                  } catch (Exception ignored) { }
+
+                  // Só lê texto quando faz sentido (economiza tempo em fotos de natureza, comida etc.)
+                  if (topo < 0.85 || pareceTexto) {
+                    try {
+                      Text tx = Tasks.await(leitorTexto().process(image), 20, TimeUnit.SECONDS);
+                      String full = tx.getText();
+                      if (full != null) {
+                        for (int i = 0; i < full.length(); i++) {
+                          if (Character.isLetterOrDigit(full.charAt(i))) nTexto++;
+                        }
+                        texto = full.replaceAll("\\s+", " ").trim();
+                        if (texto.length() > 140) texto = texto.substring(0, 140);
+                      }
+                    } catch (Exception ignored) { }
+                  }
+                }
+              } catch (Exception ignored) {
+                // Uma foto que não possa ser lida não interrompe o lote.
+              } finally {
+                if (b != null) b.recycle();
+              }
+              item.put("uri", s);
+              item.put("rotulos", rotulos);
+              item.put("texto", texto);
+              item.put("nTexto", nTexto);
+              item.put("rostos", rostos);
+              item.put("maiorRosto", Math.round(maior * 1000) / 1000.0);
+              item.put("brilho", brilho);
+              item.put("hash", hash);
+              return item;
+            }
+
+            // Só calcula a impressão digital (rápido, sem IA): usado para achar fotos parecidas.
+            @PluginMethod
+            public void hashLote(final PluginCall call) {
+              final ArrayList<String> lista = new ArrayList<>();
+              try {
+                JSArray uris = call.getArray("uris");
+                if (uris != null) {
+                  for (int i = 0; i < uris.length(); i++) lista.add(uris.getString(i));
+                }
+              } catch (Exception e) {
+                call.reject("Lote inválido: " + e.getMessage());
+                return;
+              }
+              new Thread(new Runnable() {
+                @Override
+                public void run() {
+                  try {
+                    ArrayList<Future<JSObject>> futuros = new ArrayList<>();
+                    for (final String s : lista) {
+                      futuros.add(pool.submit(new Callable<JSObject>() {
+                        @Override
+                        public JSObject call() {
+                          String h = "";
+                          Bitmap b = null;
+                          try {
+                            b = carregar(Uri.parse(s), 128);
+                            if (b != null) h = dHash(b);
+                          } catch (Exception ignored) {
+                            // foto ilegível: fica sem hash
+                          } finally {
+                            if (b != null) b.recycle();
+                          }
+                          JSObject o = new JSObject();
+                          o.put("uri", s);
+                          o.put("hash", h);
+                          return o;
+                        }
+                      }));
+                    }
+                    JSArray resultados = new JSArray();
+                    for (int i = 0; i < lista.size(); i++) resultados.put(futuros.get(i).get());
+                    JSObject out = new JSObject();
+                    out.put("resultados", resultados);
+                    call.resolve(out);
+                  } catch (Exception e) {
+                    call.reject("Erro ao calcular duplicadas: " + e.getMessage());
+                  }
+                }
+              }).start();
+            }
+
+            @PluginMethod
+            public void apagar(PluginCall call) {
+              try {
+                JSArray arr = call.getArray("uris");
+                boolean permanente = Boolean.TRUE.equals(call.getBoolean("permanente", false));
+                if (arr == null || arr.length() == 0) {
+                  call.reject("Nenhuma foto foi selecionada.");
+                  return;
+                }
+                if (arr.length() > 2000) {
+                  call.reject("O Android limita uma solicitação a 2000 fotos por vez.");
+                  return;
+                }
+
+                ArrayList<Uri> uris = new ArrayList<>();
+                for (int i = 0; i < arr.length(); i++) uris.add(Uri.parse(arr.getString(i)));
+
+                if (Build.VERSION.SDK_INT >= 30) {
+                  android.app.PendingIntent request = permanente
+                    ? MediaStore.createDeleteRequest(getContext().getContentResolver(), uris)
+                    : MediaStore.createTrashRequest(getContext().getContentResolver(), uris, true);
+                  android.content.Intent intent = new android.content.Intent(getContext(), ConfirmMediaActivity.class);
+                  intent.putExtra(ConfirmMediaActivity.EXTRA_PENDING_INTENT, request);
+                  startActivityForResult(call, intent, "apagarResultado");
+                } else {
+                  if (getPermissionState(alias()) != PermissionState.GRANTED) {
+                    requestPermissionForAlias(alias(), call, "depoisPermissaoApagar");
+                    return;
+                  }
+                  int ok = 0;
+                  for (Uri u : uris) if (getContext().getContentResolver().delete(u, null, null) > 0) ok++;
+                  JSObject r = new JSObject();
+                  r.put("ok", ok);
+                  r.put("falha", uris.size() - ok);
+                  call.resolve(r);
+                }
+              } catch (Exception e) {
+                call.reject("Erro ao excluir: " + e.getMessage());
+              }
+            }
+
+            @ActivityCallback
+            private void apagarResultado(PluginCall call, ActivityResult result) {
+              JSObject r = new JSObject();
+              if (result.getResultCode() == android.app.Activity.RESULT_OK) {
+                r.put("ok", call.getArray("uris").length());
+                r.put("falha", 0);
+                r.put("cancelado", false);
+              } else {
+                r.put("ok", 0);
+                r.put("falha", 0);
+                r.put("cancelado", true);
+              }
+              call.resolve(r);
+            }
+
+            @PermissionCallback
+            private void depoisPermissaoApagar(PluginCall call) {
+              if (getPermissionState(alias()) == PermissionState.GRANTED) apagar(call);
+              else call.reject("Permissão de armazenamento negada.");
+            }
+          }
+          FILE_GaleriaPlugin_java
+          cat > ConfirmMediaActivity.java <<'FILE_ConfirmMediaActivity_java'
+          package com.tobias.galeria;
+
+          import android.app.Activity;
+          import android.app.PendingIntent;
+          import android.content.Intent;
+          import android.os.Bundle;
+
+          public class ConfirmMediaActivity extends Activity {
+            public static final String EXTRA_PENDING_INTENT = "pendingIntent";
+            private static final int REQUEST = 7401;
+
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+              super.onCreate(savedInstanceState);
+              PendingIntent pending = getIntent().getParcelableExtra(EXTRA_PENDING_INTENT);
+              if (pending == null) {
+                setResult(RESULT_CANCELED);
+                finish();
+                return;
+              }
+              try {
+                startIntentSenderForResult(pending.getIntentSender(), REQUEST, null, 0, 0, 0);
+              } catch (Exception e) {
+                setResult(RESULT_CANCELED);
+                finish();
+              }
+            }
+
+            @Override
+            protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+              super.onActivityResult(requestCode, resultCode, data);
+              if (requestCode == REQUEST) {
+                setResult(resultCode, data);
+                finish();
+              }
+            }
+          }
+          FILE_ConfirmMediaActivity_java
+          cat > MainActivity.java <<'FILE_MainActivity_java'
+          package com.tobias.galeria;
+
+          import android.os.Bundle;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+            @Override
+            public void onCreate(Bundle savedInstanceState) {
+              registerPlugin(GaleriaPlugin.class);
+              super.onCreate(savedInstanceState);
+            }
+          }
+          FILE_MainActivity_java
+      - name: Instalar Capacitor e gerar Android
+        shell: bash
+        run: |
+          set -e
+          npm init -y
+          npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
+          APP_NAME="Organiza"
+          npx cap init "$APP_NAME" com.tobias.galeria --web-dir www
+          if [ -f capacitor.config.json ]; then
+            node -e "const fs=require('fs');const f='capacitor.config.json';const c=JSON.parse(fs.readFileSync(f,'utf8'));c.backgroundColor='#0c0d0f';fs.writeFileSync(f,JSON.stringify(c,null,2))"
+          fi
+          npx cap add android
+          npx cap sync android
+
+      - name: Instalar ML Kit e permissões de galeria
+        shell: bash
+        run: |
+          set -e
+          GRADLE=android/app/build.gradle
+          sed -i '/^dependencies[[:space:]]*{/a\    implementation "com.google.mlkit:image-labeling:17.0.9"\n    implementation "com.google.mlkit:text-recognition:16.0.1"\n    implementation "com.google.mlkit:face-detection:16.1.7"' "$GRADLE"
+
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          sed -i '/<manifest /a\    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />' "$MANIFEST"
+          sed -i '/<\/application>/i\        <activity android:name=".ConfirmMediaActivity" android:exported="false" />' "$MANIFEST"
+
+          mkdir -p android/app/src/main/java/com/tobias/galeria
+          cp GaleriaPlugin.java android/app/src/main/java/com/tobias/galeria/GaleriaPlugin.java
+          cp ConfirmMediaActivity.java android/app/src/main/java/com/tobias/galeria/ConfirmMediaActivity.java
+          cp MainActivity.java android/app/src/main/java/com/tobias/galeria/MainActivity.java
+          # Ícone novo (adaptativo: fundo escuro + cartão amarelo com brilho)
+          RES=android/app/src/main/res
+          mkdir -p $RES/drawable $RES/values $RES/mipmap-anydpi-v26 $RES/mipmap-anydpi-v33
+          cat > $RES/values/galeria_cores.xml <<'XML_CORES'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="galeria_bg">#0C0D0F</color>
+          </resources>
+          XML_CORES
+          cat > $RES/drawable/ic_galeria_fg.xml <<'XML_FG'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <group android:pivotX="54" android:pivotY="54" android:rotation="-12">
+                  <path android:fillColor="#454B53" android:pathData="M41,30 H67 A7,7 0 0 1 74,37 V71 A7,7 0 0 1 67,78 H41 A7,7 0 0 1 34,71 V37 A7,7 0 0 1 41,30 Z" />
+              </group>
+              <group android:pivotX="54" android:pivotY="54" android:rotation="6">
+                  <path android:fillColor="#FFC531" android:pathData="M41,30 H67 A7,7 0 0 1 74,37 V71 A7,7 0 0 1 67,78 H41 A7,7 0 0 1 34,71 V37 A7,7 0 0 1 41,30 Z" />
+                  <path android:fillColor="#1B1400" android:pathData="M39,71 L49.5,55 L56,64.5 L61,58 L69,71 Z" />
+                  <path android:fillColor="#1B1400" android:pathData="M63,39.5 A4.5,4.5 0 1 1 63,48.5 A4.5,4.5 0 1 1 63,39.5 Z" />
+              </group>
+              <path android:fillColor="#FFFFFF" android:pathData="M33,29 L34.6,32.4 L38,34 L34.6,35.6 L33,39 L31.4,35.6 L28,34 L31.4,32.4 Z" />
+          </vector>
+          XML_FG
+          cat > $RES/drawable/ic_galeria_mono.xml <<'XML_MONO'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <group android:pivotX="54" android:pivotY="54" android:rotation="6">
+                  <path android:fillColor="#000000" android:fillType="evenOdd" android:pathData="M41,30 H67 A7,7 0 0 1 74,37 V71 A7,7 0 0 1 67,78 H41 A7,7 0 0 1 34,71 V37 A7,7 0 0 1 41,30 Z M39,71 L49.5,55 L56,64.5 L61,58 L69,71 Z M63,39.5 A4.5,4.5 0 1 1 63,48.5 A4.5,4.5 0 1 1 63,39.5 Z" />
+              </group>
+          </vector>
+          XML_MONO
+          for N in ic_launcher ic_launcher_round; do
+          cat > $RES/mipmap-anydpi-v26/$N.xml <<'XML_A26'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/galeria_bg" />
+              <foreground android:drawable="@drawable/ic_galeria_fg" />
+          </adaptive-icon>
+          XML_A26
+          cat > $RES/mipmap-anydpi-v33/$N.xml <<'XML_A33'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/galeria_bg" />
+              <foreground android:drawable="@drawable/ic_galeria_fg" />
+              <monochrome android:drawable="@drawable/ic_galeria_mono" />
+          </adaptive-icon>
+          XML_A33
+          done
+
+      - name: Verificações antes da compilação
+        shell: bash
+        run: |
+          set -e
+          node --check www/app.js
+          grep -q 'com.google.mlkit:image-labeling:17.0.9' android/app/build.gradle
+          grep -q 'com.google.mlkit:text-recognition:16.0.1' android/app/build.gradle
+          grep -q 'com.google.mlkit:face-detection:16.1.7' android/app/build.gradle
+          grep -q 'analisarUma' android/app/src/main/java/com/tobias/galeria/GaleriaPlugin.java
+          grep -q 'hashLote' android/app/src/main/java/com/tobias/galeria/GaleriaPlugin.java
+          grep -q 'ic_galeria_fg' android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          grep -q 'ConfirmMediaActivity' android/app/src/main/AndroidManifest.xml
+          grep -q 'GaleriaPlugin.class' android/app/src/main/java/com/tobias/galeria/MainActivity.java
+          grep -q 'READ_MEDIA_VIDEO' android/app/src/main/AndroidManifest.xml
+          grep -q 'miniatura' android/app/src/main/java/com/tobias/galeria/GaleriaPlugin.java
+
+      - name: Montar o APK v11
+        shell: bash
+        run: |
+          set -e
+          cd android
+          ./gradlew clean assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: galeria-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
