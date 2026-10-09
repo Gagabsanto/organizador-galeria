@@ -929,7 +929,7 @@ jobs:
           set -e
           npm init -y
           npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
-          APP_NAME="Organiza"
+          APP_NAME="lumi"
           npx cap init "$APP_NAME" com.tobias.galeria --web-dir www
           if [ -f capacitor.config.json ]; then
             node -e "const fs=require('fs');const f='capacitor.config.json';const c=JSON.parse(fs.readFileSync(f,'utf8'));c.backgroundColor='#0c0d0f';fs.writeFileSync(f,JSON.stringify(c,null,2))"
